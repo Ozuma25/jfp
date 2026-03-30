@@ -1,0 +1,55 @@
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import models
+
+from catalog.models import Product
+
+
+class Cart(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="cart_owned",
+    )
+    session_key = models.CharField(max_length=64, null=True, blank=True, unique=True)
+    coupon = models.ForeignKey(
+        "coupons.Coupon", 
+        null=True, 
+        blank=True, 
+        on_delete=models.SET_NULL,
+        related_name="carts"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    abandoned_reminder_sent = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(user__isnull=False, session_key__isnull=True)
+                    | models.Q(user__isnull=True, session_key__isnull=False)
+                ),
+                name="cart_user_xor_session",
+            ),
+        ]
+
+    def clean(self):
+        if bool(self.user_id) == bool(self.session_key):
+            raise ValidationError("Cart must have either user or session_key, not both or neither.")
+
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    custom_design_file = models.FileField(
+        upload_to="cart_designs/%Y/%m/",
+        null=True,
+        blank=True,
+        help_text="Uploaded JPG, PNG, or PDF for bespoke orders.",
+    )
+
+    class Meta:
+        pass # Allow multiple items of same product for bespoke designs
