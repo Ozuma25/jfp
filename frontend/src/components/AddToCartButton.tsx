@@ -88,6 +88,7 @@ export function AddToCartButton({
           price: detail.price,
           image: detail.image,
           bulk_threshold: detail.bulk_threshold ?? null,
+          stock: detail.stock,
         });
       } catch { /* ignore cache pre-warm fail */ }
 

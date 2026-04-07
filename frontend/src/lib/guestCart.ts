@@ -21,6 +21,18 @@ type ProductSnapshot = {
 };
 // keep cache functions for retro-compatibility but we will mostly rely on fresh fetches now.
 
+export function cacheProductSnapshot(snapshot: ProductSnapshot) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(PRODUCT_CACHE_KEY);
+    const cache: Record<string, ProductSnapshot> = raw ? JSON.parse(raw) : {};
+    cache[snapshot.slug.toLowerCase()] = snapshot;
+    localStorage.setItem(PRODUCT_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Best-effort cache; do not block cart flow on storage issues.
+  }
+}
+
 // ... localStorage utilities
 export function getGuestCart(): GuestCartItem[] {
   if (typeof window === "undefined") return [];
