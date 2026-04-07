@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { DM_Sans, Great_Vibes, Libre_Baskerville } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
@@ -63,7 +64,9 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${dmSans.variable} ${greatVibes.variable} ${serif.variable} min-h-screen bg-[#F9F9F7] font-sans antialiased text-store-navy`}
       >
-        <TopProgressBar />
+        <Suspense fallback={null}>
+          <TopProgressBar />
+        </Suspense>
         <Providers>
           <ConditionalLayout>{children}</ConditionalLayout>
         </Providers>
