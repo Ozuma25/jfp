@@ -7,7 +7,11 @@ from datetime import timedelta
 from importlib import import_module
 from pathlib import Path
 
-from dotenv import load_dotenv
+try:
+    load_dotenv = import_module("dotenv").load_dotenv
+except ModuleNotFoundError:
+    def load_dotenv(*args, **kwargs):
+        return False
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 REPO_ROOT = BACKEND_DIR.parent
@@ -46,9 +50,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -122,13 +126,14 @@ MEDIA_ROOT = BACKEND_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# --- CORS (Next.js default:3000) ---
-_cors = os.environ.get(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000",
-)
-CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors.split(",") if o.strip()]
+# --- CORS / CSRF (production allowlist) ---
+CORS_ALLOWED_ORIGINS = [
+    "https://jfp-git-dev-ozuma25s-projects.vercel.app",
+]
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = [
+    "https://jfp-git-dev-ozuma25s-projects.vercel.app",
+]
 
 # --- REST + JWT ---
 REST_FRAMEWORK = {
