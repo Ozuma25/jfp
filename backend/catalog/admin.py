@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.contrib import messages
+from django.db.models.deletion import ProtectedError
 from django.db.models import Max
 
 from catalog.forms import ProductAdminForm
@@ -104,6 +106,62 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ("name", "sku", "description")
     prepopulated_fields = {"slug": ("name",)}
     inlines = (ProductImageInline,)
+
+    def get_deleted_objects(self, objs, request):
+        deleted_objects, model_count, perms_needed, protected = super().get_deleted_objects(
+            objs, request
+        )
+        # Let delete flow continue for protected order references; we archive on delete.
+        if protected:
+            protected = []
+            deleted_objects = list(deleted_objects) + [
+                "Referenced order lines will be kept and linked products will be archived."
+            ]
+        return deleted_objects, model_count, perms_needed, protected
+
+    def delete_model(self, request, obj):
+        try:
+            super().delete_model(request, obj)
+        except ProtectedError:
+            # Keep historical order lines intact; archive the product instead.
+            obj.is_active = False
+            obj.save(update_fields=["is_active"])
+            self.message_user(
+                request,
+                (
+                    f"'{obj.name}' is used in existing orders, so it was archived "
+                    "instead of being permanently deleted."
+                ),
+                level=messages.WARNING,
+            )
+
+    def delete_queryset(self, request, queryset):
+        protected_count = 0
+        deleted_count = 0
+        for product in queryset:
+            try:
+                product.delete()
+                deleted_count += 1
+            except ProtectedError:
+                product.is_active = False
+                product.save(update_fields=["is_active"])
+                protected_count += 1
+
+        if deleted_count:
+            self.message_user(
+                request,
+                f"Permanently deleted {deleted_count} product(s).",
+                level=messages.SUCCESS,
+            )
+        if protected_count:
+            self.message_user(
+                request,
+                (
+                    f"Archived {protected_count} product(s) because they are "
+                    "referenced by existing orders."
+                ),
+                level=messages.WARNING,
+            )
 
 
 @admin.register(SiteSettings)

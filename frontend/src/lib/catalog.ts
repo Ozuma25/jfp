@@ -50,16 +50,30 @@ export async function fetchProductList(
   Object.entries(searchParams).forEach(([k, v]) => {
     if (v != null && v !== "") q.set(k, v);
   });
-  const res = await fetch(`${base}/api/products/?${q.toString()}`, {
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/products/?${q.toString()}`, {
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error(
+      "Unable to reach the server. Please check that the API is running and accessible."
+    );
+  }
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 export async function fetchCategories(): Promise<Category[]> {
   const base = getApiBase();
-  const res = await fetch(`${base}/api/categories/`, { cache: "no-store" });
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/categories/`, { cache: "no-store" });
+  } catch {
+    throw new Error(
+      "Unable to reach the server. Please check that the API is running and accessible."
+    );
+  }
   if (!res.ok) throw new Error(await res.text());
   const data: Paginated<Category> | Category[] = await res.json();
   if (Array.isArray(data)) return data;
@@ -68,9 +82,16 @@ export async function fetchCategories(): Promise<Category[]> {
 
 export async function fetchProductDetail(slug: string): Promise<ProductDetail> {
   const base = getApiBase();
-  const res = await fetch(`${base}/api/products/${encodeURIComponent(slug)}/`, {
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/products/${encodeURIComponent(slug)}/`, {
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error(
+      "Unable to reach the server. Please check that the API is running and accessible."
+    );
+  }
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }

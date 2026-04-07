@@ -26,11 +26,16 @@ export function clearTokens() {
 async function refreshAccessToken(): Promise<string | null> {
   const r = getRefreshToken();
   if (!r) return null;
-  const res = await fetch(`${getApiBase()}/api/auth/token/refresh/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh: r }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${getApiBase()}/api/auth/token/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: r }),
+    });
+  } catch {
+    return null;
+  }
   if (!res.ok) {
     clearTokens();
     return null;
@@ -56,12 +61,30 @@ export async function authFetch<T>(
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  const res = await fetch(`${getApiBase()}${path}`, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${getApiBase()}${path}`, { ...init, headers });
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      text: "Unable to reach the server. Please check that the API is running and accessible.",
+    };
+  }
   if (res.status === 401 && getRefreshToken()) {
     const newAccess = await refreshAccessToken();
     if (newAccess) {
       headers.set("Authorization", `Bearer ${newAccess}`);
-      const retry = await fetch(`${getApiBase()}${path}`, { ...init, headers });
+      let retry: Response;
+      try {
+        retry = await fetch(`${getApiBase()}${path}`, { ...init, headers });
+      } catch {
+        return {
+          ok: false,
+          status: 0,
+          text: "Unable to reach the server. Please check that the API is running and accessible.",
+        };
+      }
       if (!retry.ok) {
         return { ok: false, status: retry.status, text: await retry.text() };
       }

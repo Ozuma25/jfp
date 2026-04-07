@@ -127,13 +127,12 @@ MEDIA_ROOT = BACKEND_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- CORS / CSRF (production allowlist) ---
-CORS_ALLOWED_ORIGINS = [
-    "https://jfp-git-dev-ozuma25s-projects.vercel.app",
-]
+_default_cors_origins = "https://jfp-git-dev-ozuma25s-projects.vercel.app"
+_raw_cors_origins = os.environ.get("CORS_ALLOWED_ORIGINS", _default_cors_origins)
+CORS_ALLOWED_ORIGINS = [o.strip() for o in _raw_cors_origins.split(",") if o.strip()]
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = [
-    "https://jfp-git-dev-ozuma25s-projects.vercel.app",
-]
+_raw_csrf_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", _raw_cors_origins)
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _raw_csrf_origins.split(",") if o.strip()]
 
 # --- REST + JWT ---
 REST_FRAMEWORK = {
@@ -172,10 +171,26 @@ FRONTEND_URL = os.environ.get(
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8000")
 
 
-# --- Media: local (dev) vs S3 (prod) ---
+# --- Media: local (dev), Cloudinary, or S3 ---
+USE_CLOUDINARY = os.environ.get("USE_CLOUDINARY", "0") in ("1", "true", "True", "yes")
 USE_S3 = os.environ.get("USE_S3", "0") in ("1", "true", "True", "yes")
 
-if USE_S3:
+if USE_CLOUDINARY:
+    INSTALLED_APPS += ["cloudinary_storage", "cloudinary"]
+    CLOUDINARY_STORAGE = {
+        "CLOUD_NAME": os.environ.get("CLOUDINARY_CLOUD_NAME", ""),
+        "API_KEY": os.environ.get("CLOUDINARY_API_KEY", ""),
+        "API_SECRET": os.environ.get("CLOUDINARY_API_SECRET", ""),
+    }
+    STORAGES = {
+        "default": {
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+elif USE_S3:
     INSTALLED_APPS.append("storages")
     AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
     AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")

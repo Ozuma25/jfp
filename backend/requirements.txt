@@ -13,3 +13,5 @@ reportlab>=4.1.0
 django-storages==1.14.6
 boto3==1.42.84
 whitenoise==6.9.0
+cloudinary==1.44.1
+django-cloudinary-storage==0.3.0
