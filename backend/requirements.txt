@@ -17,6 +17,7 @@ distro==1.7.0
 distro-info==1.1+ubuntu0.2
 dj-database-url==3.1.2
 Django==5.2.12
+psycopg2-binary==2.9.9
 duplicity==0.8.21
 fasteners==0.14.1
 folder-color==0.2.0
@@ -59,6 +60,7 @@ pymacaroons==0.13.0
 PyNaCl==1.5.0
 pyparsing==2.4.7
 pyRFC3339==1.1
+python-dotenv==1.0.1
 python-apt===2.4.0-ubuntu4.1-zorin1
 python-dateutil==2.8.1
 python-debian==0.1.43+ubuntu1.1

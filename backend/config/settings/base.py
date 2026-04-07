@@ -4,9 +4,9 @@ Loads `.env` from repo root (`E_com/.env`) or `backend/.env`.
 """
 import os
 from datetime import timedelta
+from importlib import import_module
 from pathlib import Path
 
-import dj_database_url
 from dotenv import load_dotenv
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
@@ -77,11 +77,24 @@ TEMPLATES = [
 ]
 
 # --- Database: PostgreSQL via DATABASE_URL; SQLite fallback if unset ---
-DATABASES = {
-    "default": dj_database_url.config(
+try:
+    dj_database_url = import_module("dj_database_url")
+except ModuleNotFoundError:
+    dj_database_url = None
+
+if dj_database_url:
+    default_db_config = dj_database_url.config(
         default=f"sqlite:///{BACKEND_DIR / 'db.sqlite3'}",
         conn_max_age=600,
     )
+else:
+    default_db_config = {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": str(BACKEND_DIR / "db.sqlite3"),
+    }
+
+DATABASES = {
+    "default": default_db_config
 }
 
 AUTH_PASSWORD_VALIDATORS = [
