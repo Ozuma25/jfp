@@ -165,7 +165,10 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "orders@jaifancypacks.
 ADMINS_EMAIL = os.environ.get("ADMINS_EMAIL", "")
 
 # Frontend and backend URLs (used in emails and notifications)
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_URL = os.environ.get(
+    "FRONTEND_URL",
+    "https://jfp-git-dev-ozuma25s-projects.vercel.app",
+)
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8000")
 
 
