@@ -105,6 +105,10 @@ class Product(models.Model):
         default=False,
         help_text="Customer may upload design (JPG/PNG/PDF).",
     )
+    is_returnable = models.BooleanField(
+        default=True,
+        help_text="Uncheck for non-returnable items (e.g. perishables, custom prints).",
+    )
     bulk_threshold = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -165,3 +169,64 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"{self.product_id}:{self.sort_order}"
+
+
+class ProductVariant(models.Model):
+    """A color/size/material permutation of a product."""
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="variants",
+    )
+    color = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text="e.g. Red, Royal Blue, Gold",
+    )
+    size = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text="e.g. Small, Medium, Large, XL or 10x12cm",
+    )
+    price_override = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Leave blank to use the base product price.",
+    )
+    stock = models.PositiveIntegerField(default=0)
+    sku_suffix = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="Optional suffix appended to the base SKU (e.g. -RED-L).",
+    )
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        parts = [p for p in [self.color, self.size] if p]
+        return f"{self.product.name} — {' / '.join(parts)}" if parts else f"{self.product.name} variant"
+
+    @property
+    def effective_price(self):
+        return self.price_override if self.price_override is not None else self.product.price
+
+
+class ProductVariantImage(models.Model):
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.CASCADE,
+        related_name="images",
+    )
+    image = models.ImageField(upload_to="variants/%Y/%m/")
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return f"variant:{self.variant_id}:{self.sort_order}"

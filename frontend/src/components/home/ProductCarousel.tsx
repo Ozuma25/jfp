@@ -33,20 +33,49 @@ function ProductCard({ p }: { p: CarouselProduct }) {
   const displayImages = p.images && p.images.length > 0 ? p.images : p.image ? [p.image] : [];
   const hasMultiple = displayImages.length > 1;
 
+  // Determine badge styling based on text
+  let badgeStyle = "bg-slate-100 text-slate-800";
+  if (p.badge) {
+    const lowerBadge = p.badge.toLowerCase();
+    if (lowerBadge.includes("sale")) {
+      badgeStyle = "bg-[#f5e1e5] text-[#8e4a59]";
+    } else if (lowerBadge.includes("new")) {
+      badgeStyle = "bg-[#4a5568] text-white";
+    } else if (lowerBadge.includes("best")) {
+      badgeStyle = "bg-[#fef3c7] text-[#92400e]";
+    }
+  }
+
   return (
     <article className="w-[240px] md:w-[280px] shrink-0 snap-start flex flex-col group/card">
-      <Link href={`/products/${p.slug}`} className="relative aspect-[3/4] overflow-hidden rounded-t-[5rem] bg-white border border-gray-50 shadow-sm group-hover/card:shadow-2xl transition-all duration-700">
+      <Link href={`/products/${p.slug}`} className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-neutral-100 transition-all duration-300">
         {displayImages.length > 0 ? (
           <CloudImage
             src={displayImages[imgIndex]}
             alt={p.title}
             fill
-            className={`object-cover transition-transform duration-1000 group-hover/card:scale-110 ${p.stock <= 0 ? 'grayscale opacity-70' : ''}`}
+            className={`object-cover transition-transform duration-700 ease-out group-hover/card:scale-105 ${p.stock <= 0 ? 'grayscale opacity-60' : ''}`}
             sizes="280px"
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-neutral-50 p-4 text-center text-xs text-neutral-400">
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[#f7f7f7] text-center text-xs text-neutral-500 uppercase tracking-widest">
             <span>No image</span>
+          </div>
+        )}
+
+        {/* Dynamic Floating Pill Badges */}
+        {p.badge && (
+          <div className={`absolute left-3 top-3 z-20 rounded-full px-3 py-1 text-[10px] sm:text-[11px] font-bold tracking-wide shadow-sm ${badgeStyle}`}>
+            {p.badge}
+          </div>
+        )}
+
+        {/* Out of stock overlay */}
+        {p.stock <= 0 && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/5 pointer-events-none">
+            <span className="bg-white/90 text-red-600 text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full shadow-md backdrop-blur-sm">
+              Out of Stock
+            </span>
           </div>
         )}
 
@@ -55,37 +84,22 @@ function ProductCard({ p }: { p: CarouselProduct }) {
           <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover/card:opacity-100 transition-opacity">
             <button 
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setImgIndex(i => (i - 1 + displayImages.length) % displayImages.length); }}
-              className="bg-white/90 p-1.5 rounded-full shadow-lg text-store-navy hover:bg-white transition-all transform -translate-x-2 group-hover/card:translate-x-0 group/btn z-40"
+              className="bg-white/90 p-1.5 rounded-full shadow-lg text-slate-800 hover:bg-white transition-all transform -translate-x-2 group-hover/card:translate-x-0 z-40"
             >
               <IconChevronLeft className="h-4 w-4" />
             </button>
             <button 
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setImgIndex(i => (i + 1) % displayImages.length); }}
-              className="bg-white/90 p-1.5 rounded-full shadow-lg text-store-navy hover:bg-white transition-all transform translate-x-2 group-hover/card:translate-x-0 group/btn z-40"
+              className="bg-white/90 p-1.5 rounded-full shadow-lg text-slate-800 hover:bg-white transition-all transform translate-x-2 group-hover/card:translate-x-0 z-40"
             >
               <IconChevronRight className="h-4 w-4" />
             </button>
           </div>
         )}
 
-        {/* Progress dots for internal carousel */}
-        {hasMultiple && (
-           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1 px-2 py-1 bg-black/20 backdrop-blur-sm rounded-full opacity-100 transition-opacity z-20">
-              {displayImages.map((_, i) => (
-                <div key={i} className={`h-1 transition-all ${i === imgIndex ? 'w-4 bg-store-button' : 'w-1 bg-white/50'}`} />
-              ))}
-           </div>
-        )}
-
-        {p.badge && (
-          <span className="absolute left-4 top-4 bg-store-button text-black text-[9px] uppercase font-bold tracking-[0.1em] px-3 py-1 rounded-full shadow-lg z-20">
-            {p.badge}
-          </span>
-        )}
-
-        {/* Intercept clicks so the Link parent doesn't navigate */}
+        {/* Add To Cart Hover Button */}
         <div
-          className="absolute inset-x-0 bottom-0 p-4 transform translate-y-full group-hover/card:translate-y-0 transition-transform duration-500 z-40"
+          className="absolute inset-x-0 bottom-0 p-3 transform translate-y-full group-hover/card:translate-y-0 transition-transform duration-500 z-40"
           onClick={(e) => e.preventDefault()}
         >
           {p.stock > 0 ? (
@@ -93,41 +107,34 @@ function ProductCard({ p }: { p: CarouselProduct }) {
               productSlug={p.slug}
               quantity={p.minQty}
               imageSrc={displayImages[imgIndex] ?? undefined}
-              className="w-full bg-store-navy text-white hover:bg-store-button hover:text-black border-none shadow-2xl py-3 text-[11px] font-bold uppercase tracking-widest rounded-none"
+              className="w-full bg-[#1c2434] text-white hover:bg-[#0f172a] hover:text-white border-none shadow-lg py-2.5 text-[11px] font-bold uppercase tracking-widest rounded-xl transition-colors"
             />
           ) : (
-            <div className="w-full bg-neutral-100 text-neutral-400 py-3 text-[11px] font-bold uppercase tracking-widest text-center cursor-not-allowed border border-neutral-200">
-              Out of Stock
-            </div>
+             <div className="w-full bg-white/80 backdrop-blur-md text-red-600 font-bold uppercase tracking-widest text-[10px] text-center py-2.5 rounded-xl border border-red-100 cursor-not-allowed">
+                Out of Stock
+             </div>
           )}
         </div>
       </Link>
 
-      <div className="mt-6 text-center space-y-2">
+      {/* Clean Left-Aligned Typography */}
+      <div className="mt-4 px-1 flex flex-col gap-1">
         <Link
           href={`/products/${p.slug}`}
-          className="block text-xl font-serif text-store-navy group-hover/card:text-store-button transition-colors leading-snug line-clamp-1"
+          className="text-[14px] font-medium leading-[1.3] text-[#1c2434] line-clamp-2 transition-colors hover:text-blue-600"
         >
           {p.title}
         </Link>
-        {p.reviewCount > 0 && (
-          <div className="flex justify-center gap-0.5 text-store-button">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <IconStar
-                key={i}
-                className="h-3 w-3"
-                filled={i < Math.floor(p.rating)}
-              />
-            ))}
-          </div>
-        )}
-        <p className="text-[17px] font-bold text-store-navy/90 tracking-tighter">{p.price}</p>
-        
-        {p.bulkThreshold != null && (
-          <p className="text-[9px] uppercase tracking-widest text-neutral-400 font-bold">
-            Bulk starting at {p.bulkThreshold} pcs
-          </p>
-        )}
+        <div className="flex items-center justify-between mt-1">
+          <p className="font-normal text-[#64748b] text-[13px] tracking-tight">{p.price}</p>
+          
+          {p.reviewCount > 0 && (
+            <div className="flex items-center gap-1 opacity-80">
+              <IconStar className="h-3 w-3 text-store-yellow" filled={true} />
+              <span className="text-[11px] font-medium text-slate-500">{p.rating.toFixed(1)}</span>
+            </div>
+          )}
+        </div>
       </div>
     </article>
   );

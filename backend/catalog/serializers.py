@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.utils import timezone
 from rest_framework import serializers
 
-from catalog.models import Category, Product, SiteSettings
+from catalog.models import Category, Product, ProductVariant, SiteSettings
 
 
 def _money_inr(value: Decimal) -> str:
@@ -45,6 +45,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             "bulk_threshold",
             "min_qty",
             "is_customizable",
+            "is_returnable",
             "category_slug",
             "stock",
         )
@@ -96,10 +97,37 @@ class ProductListSerializer(serializers.ModelSerializer):
         return None
 
 
+class ProductVariantSerializer(serializers.ModelSerializer):
+    images = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductVariant
+        fields = ("id", "color", "size", "price", "stock", "sku_suffix", "sort_order", "images")
+
+    def get_images(self, obj: ProductVariant) -> list[str]:
+        request = self.context.get("request")
+        out: list[str] = []
+        for im in obj.images.all():
+            if not im.image:
+                continue
+            url = im.image.url
+            if request and url.startswith("/"):
+                url = request.build_absolute_uri(url)
+            out.append(url)
+        return out
+
+    def get_price(self, obj: ProductVariant) -> str | None:
+        if obj.price_override is not None:
+            return _money_inr(obj.price_override)
+        return None
+
+
 class ProductDetailSerializer(ProductListSerializer):
     description = serializers.CharField()
     compare_at_price_display = serializers.SerializerMethodField()
     recent_sales_count = serializers.SerializerMethodField()
+    variants = serializers.SerializerMethodField()
 
     class Meta(ProductListSerializer.Meta):
         fields = ProductListSerializer.Meta.fields + (
@@ -108,7 +136,12 @@ class ProductDetailSerializer(ProductListSerializer):
             "is_bestseller",
             "created_at",
             "recent_sales_count",
+            "variants",
         )
+
+    def get_variants(self, obj: Product) -> list:
+        qs = obj.variants.prefetch_related("images").all()
+        return ProductVariantSerializer(qs, many=True, context=self.context).data
 
     def get_recent_sales_count(self, obj: Product) -> int:
         from orders.models import OrderLine

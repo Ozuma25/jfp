@@ -14,6 +14,7 @@ export type ProductCard = {
   bulk_threshold: number | null;
   min_qty: number;
   is_customizable: boolean;
+  is_returnable: boolean;
   category_slug: string;
   stock: number;
 };
@@ -32,6 +33,17 @@ export type Category = {
   description: string;
 };
 
+export type ProductVariant = {
+  id: number;
+  color: string;
+  size: string;
+  price: string | null; // null = use base price
+  stock: number;
+  sku_suffix: string;
+  sort_order: number;
+  images: string[];
+};
+
 export type ProductDetail = ProductCard & {
   description: string;
   compare_at_price_display: string | null;
@@ -40,6 +52,7 @@ export type ProductDetail = ProductCard & {
   is_bestseller: boolean;
   created_at: string;
   recent_sales_count: number;
+  variants: ProductVariant[];
 };
 
 export async function fetchProductList(

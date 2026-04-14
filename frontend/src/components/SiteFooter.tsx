@@ -42,11 +42,11 @@ export function SiteFooter() {
                      </h2>
                   </div>
                   <p className="text-neutral-400 text-base leading-relaxed max-w-md">
-                     Since 1994, we have been the silent architects of premium gifting. Our handcrafted boxes and bespoke arrangements are meticulously designed to elevate the art of celebration.
+                     Since 2023, we have been the silent architects of premium gifting. Our handcrafted boxes and bespoke arrangements are meticulously designed to elevate the art of celebration.
                   </p>
                   <div className="pt-4 flex gap-10">
                      <div className="flex flex-col gap-1">
-                        <span className="text-2xl font-serif text-store-yellow">1994</span>
+                        <span className="text-2xl font-serif text-store-yellow">2023</span>
                         <span className="text-[9px] uppercase tracking-widest text-neutral-500 font-bold">Inception Year</span>
                      </div>
                      <div className="flex flex-col gap-1">

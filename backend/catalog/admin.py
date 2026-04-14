@@ -4,12 +4,27 @@ from django.db.models.deletion import ProtectedError
 from django.db.models import Max
 
 from catalog.forms import ProductAdminForm
-from catalog.models import Category, Product, ProductImage, SiteSettings
+from catalog.models import Category, Product, ProductImage, ProductVariant, ProductVariantImage, SiteSettings
 
 
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 0
+
+
+class ProductVariantImageInline(admin.TabularInline):
+    model = ProductVariantImage
+    extra = 1
+
+
+class ProductVariantInline(admin.StackedInline):
+    model = ProductVariant
+    extra = 0
+    show_change_link = True
+    fields = ("color", "size", "price_override", "stock", "sku_suffix", "sort_order")
+    readonly_fields = ()
+    verbose_name = "Variant (Color / Size)"
+    verbose_name_plural = "Variants (Colors & Sizes)"
 
 
 @admin.register(Category)
@@ -50,6 +65,7 @@ class ProductAdmin(admin.ModelAdmin):
                     "is_active",
                     "is_bestseller",
                     "is_customizable",
+                    "is_returnable",
                     "bulk_threshold",
                     "min_qty",
                     "created_at",
@@ -105,7 +121,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "is_customizable", "is_bestseller", "category")
     search_fields = ("name", "sku", "description")
     prepopulated_fields = {"slug": ("name",)}
-    inlines = (ProductImageInline,)
+    inlines = (ProductImageInline, ProductVariantInline)
 
     def get_deleted_objects(self, objs, request):
         deleted_objects, model_count, perms_needed, protected = super().get_deleted_objects(

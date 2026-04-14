@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     template: "%s | Jai Fancy Packs",
   },
   description:
-    "Exquisite wholesale return gifts and premium packaging since 1994. Shop our boutique collection or request a bulk quote for nationwide delivery.",
+    "Exquisite wholesale return gifts and premium packaging since 2023. Shop our boutique collection or request a bulk quote for nationwide delivery.",
   keywords: ["return gifts", "wholesale packaging", "fancy boxes", "wedding return gifts", "bulk gifting India"],
   icons: {
     icon: [
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Jai Fancy Packs",
-    description: "Premium Wholesale Gifts & Boutique Packaging since 1994.",
+    description: "Premium Wholesale Gifts & Boutique Packaging since 2023.",
     url: "https://jaifancypacks.com",
     siteName: "Jai Fancy Packs",
     locale: "en_IN",
