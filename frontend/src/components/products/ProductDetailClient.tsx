@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ProductImageGallery } from "@/components/ProductImageGallery";
 import { ProductVariantPicker } from "@/components/products/ProductVariantPicker";
 import { ShareButton } from "@/components/products/ShareButton";
-import { AddToCartButton } from "@/components/AddToCartButton";
+import { ProductAddToCart } from "@/components/ProductAddToCart";
 import { PincodeCheck } from "@/components/PincodeCheck";
 import type { ProductVariant } from "@/lib/catalog";
 
@@ -16,6 +16,7 @@ import type { ProductVariant } from "@/lib/catalog";
 type Props = {
   productTitle: string;
   productSlug: string;
+  productSku: string;
   basePrice: string;
   compareAtPrice: string | null;
   baseImages: string[];
@@ -36,6 +37,7 @@ type Props = {
 export function ProductDetailClient({
   productTitle,
   productSlug,
+  productSku,
   basePrice,
   compareAtPrice,
   baseImages,
@@ -51,9 +53,13 @@ export function ProductDetailClient({
   variants,
   firstImageSrc,
 }: Props) {
-  const [activeImages, setActiveImages] = useState<string[]>(baseImages);
-  const [activePrice, setActivePrice] = useState<string>(basePrice);
-  const [activeStock, setActiveStock] = useState<number>(baseStock);
+  const [activeImages,  setActiveImages]  = useState<string[]>(baseImages);
+  const [activePrice,   setActivePrice]   = useState<string>(basePrice);
+  const [activeStock,   setActiveStock]   = useState<number>(
+    // If product has variants, start at 0 until variant resolves
+    variants.length > 0 ? 0 : baseStock
+  );
+  const [activeVariant, setActiveVariant] = useState<ProductVariant | null>(null);
 
   const handleVariantChange = (selected: {
     variant: ProductVariant | null;
@@ -61,13 +67,24 @@ export function ProductDetailClient({
     price: string;
     stock: number;
   }) => {
+    setActiveVariant(selected.variant);
     setActiveImages(selected.images.length > 0 ? selected.images : baseImages);
     setActivePrice(selected.price ?? basePrice);
-    setActiveStock(selected.stock > 0 ? selected.stock : baseStock);
+    // ⚠️ Don't fall back to baseStock — if no valid variant, stock must be 0
+    // so the purchase box is gated on a real resolved variant
+    setActiveStock(selected.variant ? selected.stock : 0);
   };
 
   const stock = activeStock;
   const price = activePrice;
+
+  // Build the displayed SKU: base SKU + variant suffix when a variant is active
+  const displaySku = activeVariant?.sku_suffix
+    ? `${productSku}-${activeVariant.sku_suffix}`
+    : productSku;
+
+  // Current image for cart fly animation = first active image
+  const activeFirstImage = activeImages[0] ?? firstImageSrc ?? null;
 
   return (
     <div className="flex flex-col lg:flex-row items-start justify-between gap-8 lg:gap-14">
@@ -95,6 +112,11 @@ export function ProductDetailClient({
               </h1>
               <ShareButton title={productTitle} />
             </div>
+            {displaySku && (
+              <p className="text-[10px] font-mono font-semibold tracking-widest text-neutral-400 uppercase">
+                SKU: <span className="text-neutral-600">{displaySku}</span>
+              </p>
+            )}
             {reviewCount > 0 && (
               <div className="flex items-center gap-4 text-store-button text-xs">
                 <div className="flex items-center gap-2">
@@ -169,11 +191,15 @@ export function ProductDetailClient({
                   <span className="text-neutral-400 italic">Nationwide Shipping</span>
                 </div>
                 <div className="space-y-5">
-                  <AddToCartButton
+                  <ProductAddToCart
                     productSlug={productSlug}
-                    quantity={minQty}
-                    imageSrc={firstImageSrc ?? undefined}
-                    className="w-full bg-store-navy text-white hover:bg-store-button hover:text-black shadow-md py-3 text-[10px] font-bold uppercase tracking-[0.2em] rounded-md border-none h-11 transition-all"
+                    productSku={productSku}
+                    effectiveSku={displaySku}
+                    variantId={activeVariant?.id ?? null}
+                    minQty={minQty}
+                    bulkThreshold={bulkThreshold}
+                    isCustomizable={isCustomizable}
+                    imageSrc={activeFirstImage}
                   />
                   <div className="pt-2">
                     <PincodeCheck />

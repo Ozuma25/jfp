@@ -147,6 +147,7 @@ export default async function ProductDetailPage({ params }: Props) {
         <ProductDetailClient
           productTitle={product.title}
           productSlug={product.slug}
+          productSku={product.sku}
           basePrice={product.price}
           compareAtPrice={product.compare_at_price_display ?? null}
           baseImages={galleryUrls}

@@ -3,27 +3,29 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from cart.models import CartItem
-from catalog.models import Product
+from catalog.models import Product, ProductVariant
 from catalog.utils import effective_bulk_threshold
 
 
 class CartItemSerializer(serializers.ModelSerializer):
-    product_slug = serializers.SlugField(source="product.slug", read_only=True)
-    product_name = serializers.CharField(source="product.name", read_only=True)
-    product_image = serializers.SerializerMethodField()
-    unit_price = serializers.DecimalField(
-        source="product.price", max_digits=12, decimal_places=2, read_only=True
-    )
-    line_total = serializers.SerializerMethodField()
+    product_slug   = serializers.SlugField(source="product.slug", read_only=True)
+    product_name   = serializers.CharField(source="product.name", read_only=True)
+    product_image  = serializers.SerializerMethodField()
+    unit_price     = serializers.SerializerMethodField()   # uses effective_price
+    line_total     = serializers.SerializerMethodField()
     bulk_threshold = serializers.SerializerMethodField()
+
+    # Variant info
+    variant_id    = serializers.IntegerField(source="variant.id",    read_only=True, allow_null=True)
+    variant_label = serializers.SerializerMethodField()  # e.g. "Blue / Medium"
 
     # ── Price-change detection ────────────────────────────────────────────────
     price_changed = serializers.SerializerMethodField()
-    price_at_add = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True, allow_null=True)
+    price_at_add  = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True, allow_null=True)
 
     # ── Stock-availability warning ────────────────────────────────────────────
-    stock_warning = serializers.SerializerMethodField()
-    available_stock = serializers.IntegerField(source="product.stock", read_only=True)
+    stock_warning   = serializers.SerializerMethodField()
+    available_stock = serializers.SerializerMethodField()  # variant stock or product stock
 
     class Meta:
         model = CartItem
@@ -41,34 +43,55 @@ class CartItemSerializer(serializers.ModelSerializer):
             "stock_warning",
             "available_stock",
             "custom_design_file",
+            "variant_id",
+            "variant_label",
         )
         read_only_fields = ("id",)
 
     def get_product_image(self, obj):
+        # Prefer variant images when available
+        if obj.variant:
+            vi = obj.variant.images.first()
+            if vi and vi.image:
+                request = self.context.get("request")
+                url = vi.image.url
+                return request.build_absolute_uri(url) if request and url.startswith("/") else url
         img = obj.product.images.first()
         if not img or not img.image:
             return None
         request = self.context.get("request")
         url = img.image.url
-        if request and url.startswith("/"):
-            return request.build_absolute_uri(url)
-        return url
+        return request.build_absolute_uri(url) if request and url.startswith("/") else url
+
+    def get_unit_price(self, obj):
+        return str(obj.effective_price.quantize(Decimal("0.01")))
+
+    def get_variant_label(self, obj):
+        if not obj.variant:
+            return None
+        parts = [p for p in [obj.variant.color, obj.variant.size] if p]
+        return " / ".join(parts) if parts else None
 
     def get_line_total(self, obj):
-        return str((obj.product.price * Decimal(obj.quantity)).quantize(Decimal("0.01")))
+        return str((obj.effective_price * Decimal(obj.quantity)).quantize(Decimal("0.01")))
 
     def get_bulk_threshold(self, obj):
         return effective_bulk_threshold(obj.product)
 
     def get_price_changed(self, obj):
-        """True when the current product price differs from the price at the time of adding."""
+        """True when the current effective price differs from price at add time."""
         if obj.price_at_add is None:
             return False
-        return obj.product.price != obj.price_at_add
+        return obj.effective_price != obj.price_at_add
 
     def get_stock_warning(self, obj):
-        """True when the cart quantity exceeds current available stock."""
-        return obj.quantity > obj.product.stock
+        """True when cart quantity exceeds the stock of the variant (or product)."""
+        stock = obj.variant.stock if obj.variant else obj.product.stock
+        return obj.quantity > stock
+
+    def get_available_stock(self, obj):
+        """Return variant stock when a variant is present, else product stock."""
+        return obj.variant.stock if obj.variant else obj.product.stock
 
 
 
@@ -82,8 +105,8 @@ class CartSerializer(serializers.Serializer):
 
     def get_subtotal(self, cart) -> str:
         total = Decimal("0")
-        for item in cart.items.all().select_related("product"):
-            total += item.product.price * Decimal(item.quantity)
+        for item in cart.items.all().select_related("product", "variant"):
+            total += item.effective_price * Decimal(item.quantity)
         return str(total.quantize(Decimal("0.01")))
 
     def get_discount(self, cart) -> str:
@@ -99,8 +122,8 @@ class CartSerializer(serializers.Serializer):
         taxable_amount = subtotal - discount
 
         total_gst = Decimal("0.00")
-        for item in cart.items.all().select_related("product"):
-            line_price = (Decimal(item.product.price) * Decimal(item.quantity)).quantize(Decimal("0.01"))
+        for item in cart.items.all().select_related("product", "variant"):
+            line_price = (item.effective_price * Decimal(item.quantity)).quantize(Decimal("0.01"))
             # proportion of this line vs full subtotal (to apportion discount)
             ratio = line_price / subtotal if subtotal > 0 else Decimal(0)
             line_taxable = (taxable_amount * ratio).quantize(Decimal("0.01"))
@@ -131,18 +154,34 @@ class CartSerializer(serializers.Serializer):
 
 class CartItemWriteSerializer(serializers.Serializer):
     product_slug = serializers.SlugField()
-    quantity = serializers.IntegerField(min_value=1)
+    quantity     = serializers.IntegerField(min_value=1)
+    variant_id   = serializers.IntegerField(required=False, allow_null=True)
     custom_design_file = serializers.FileField(required=False, allow_null=True)
 
     def validate(self, attrs):
-        slug = attrs["product_slug"]
-        qty = attrs["quantity"]
+        slug       = attrs["product_slug"]
+        qty        = attrs["quantity"]
+        variant_id = attrs.get("variant_id")
+
         try:
             product = Product.objects.get(slug=slug, is_active=True)
         except Product.DoesNotExist as e:
             raise serializers.ValidationError({"product_slug": "Product not found."}) from e
 
-        threshold = effective_bulk_threshold(product)
+        # ── Validate variant belongs to this product ───────────────────────
+        variant = None
+        if variant_id is not None:
+            try:
+                variant = ProductVariant.objects.get(id=variant_id, product=product)
+            except ProductVariant.DoesNotExist:
+                raise serializers.ValidationError(
+                    {"variant_id": "Invalid variant for this product."}
+                )
+
+        # ── Stock check: use variant stock when variant is selected ────────
+        available_stock = variant.stock if variant else product.stock
+        threshold       = effective_bulk_threshold(product)
+
         if qty > threshold:
             raise serializers.ValidationError(
                 {
@@ -153,10 +192,11 @@ class CartItemWriteSerializer(serializers.Serializer):
                     "code": "BULK_QUOTE_REQUIRED",
                 }
             )
-        if qty > product.stock:
+        if qty > available_stock:
             raise serializers.ValidationError(
-                {"quantity": f"Only {product.stock} available in stock."}
+                {"quantity": f"Only {available_stock} available in stock."}
             )
 
         attrs["product"] = product
+        attrs["variant"] = variant
         return attrs

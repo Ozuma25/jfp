@@ -1,11 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { checkoutRequest, verifyRazorpayPayment, type CheckoutResponse } from "@/lib/ordersApi";
-import { fetchCart, type CartData } from "@/lib/cartApi";
+import { fetchCart, updateCartItem, removeCartItem, type CartData } from "@/lib/cartApi";
 import { fetchAddresses, type SavedAddress } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
 
@@ -22,6 +23,7 @@ export default function CheckoutPage() {
   const [busy, setBusy] = useState(false);
   const [scriptReady, setScriptReady] = useState(false);
   const [cart, setCart] = useState<CartData | null>(null);
+  const [cartBusy, setCartBusy] = useState<number | null>(null); // item id being updated
 
   const [step, setStep] = useState<1 | 2>(1); // 1 = Address, 2 = Payment
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
@@ -192,9 +194,47 @@ export default function CheckoutPage() {
 
   const isBespoke = cart?.items.some(item => !!item.custom_design_file);
 
+  async function handleQtyChange(itemId: number, newQty: number, slug: string) {
+    if (newQty < 1) return;
+    setCartBusy(itemId);
+    try {
+      const updated = await updateCartItem(itemId, newQty, slug);
+      setCart(updated);
+      window.dispatchEvent(new Event("jfp-cart-updated"));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not update quantity.");
+    } finally {
+      setCartBusy(null);
+    }
+  }
+
+  async function handleRemove(itemId: number, slug: string) {
+    setCartBusy(itemId);
+    try {
+      const updated = await removeCartItem(itemId, slug);
+      setCart(updated);
+      window.dispatchEvent(new Event("jfp-cart-updated"));
+      // If cart is now empty, send user back to cart page
+      if (updated.items.length === 0) {
+        router.replace("/cart?empty=checkout");
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not remove item.");
+    } finally {
+      setCartBusy(null);
+    }
+  }
+
   async function handlePaymentRequest(e: React.FormEvent) {
     e.preventDefault();
     setErr("");
+
+    // Guard: never allow checkout with an empty cart
+    if (!cart || cart.items.length === 0) {
+      router.replace("/cart?empty=checkout");
+      return;
+    }
+
     setBusy(true);
     try {
       const data = await checkoutRequest({
@@ -407,8 +447,88 @@ export default function CheckoutPage() {
                  </div>
                )}
             </div>
-            
-            <p className="text-xs text-gray-500 pt-4 px-2">Need help? Check our <Link href="#" className="text-store-link hover:underline">Return & Replacement Policy</Link>.</p>
+
+            {/* ── Cart Items Review ─────────────────────────────────────── */}
+            <div className="bg-white rounded overflow-hidden shadow-sm border border-gray-200">
+              <div className="p-5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                <h2 className="text-[19px] font-bold text-gray-900">
+                  3 &nbsp; Review your items ({cart.items.reduce((s, i) => s + i.quantity, 0)})
+                </h2>
+                <Link href="/cart" className="text-store-link hover:underline text-sm font-semibold">Edit in cart</Link>
+              </div>
+
+              <div className="divide-y divide-gray-100">
+                {cart.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`p-5 flex gap-4 transition-opacity duration-200 ${cartBusy === item.id ? "opacity-40 pointer-events-none" : ""}`}
+                  >
+                    {/* Thumbnail */}
+                    <Link href={`/products/${item.product_slug}`} className="relative shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden bg-neutral-50 border border-gray-100">
+                      {item.product_image ? (
+                        <Image src={item.product_image} alt={item.product_name} fill className="object-cover" sizes="72px" />
+                      ) : (
+                        <span className="flex h-full items-center justify-center text-[8px] text-neutral-400 font-bold uppercase">No image</span>
+                      )}
+                    </Link>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between gap-2 items-start">
+                        <div className="min-w-0">
+                          <Link href={`/products/${item.product_slug}`} className="text-[13px] font-semibold text-gray-900 hover:text-store-link leading-snug line-clamp-2">
+                            {item.product_name}
+                          </Link>
+                          {item.variant_label && (
+                            <span className="mt-1 inline-flex text-[10px] font-bold uppercase tracking-widest text-store-button bg-store-button/10 border border-store-button/20 px-2 py-0.5 rounded-full">
+                              {item.variant_label}
+                            </span>
+                          )}
+                          {item.stock_warning && (
+                            <p className="mt-0.5 text-[10px] font-bold text-red-600">⚠️ Only {item.available_stock} in stock</p>
+                          )}
+                        </div>
+                        <p className="text-[14px] font-bold text-gray-900 shrink-0 whitespace-nowrap">₹ {item.line_total}</p>
+                      </div>
+
+                      {/* Qty controls + Remove */}
+                      <div className="mt-2.5 flex items-center gap-3">
+                        <div className="flex items-center border border-gray-300 rounded overflow-hidden text-[13px]">
+                          <button
+                            onClick={() => handleQtyChange(item.id, item.quantity - 1, item.product_slug)}
+                            disabled={item.quantity <= 1 || cartBusy === item.id}
+                            className="px-2.5 py-1 hover:bg-gray-100 font-bold text-gray-700 disabled:opacity-30 transition-colors"
+                          >−</button>
+                          <span className="px-3 py-1 font-semibold text-gray-900 min-w-[2rem] text-center border-x border-gray-300 bg-gray-50">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => handleQtyChange(item.id, item.quantity + 1, item.product_slug)}
+                            disabled={item.quantity >= item.available_stock || cartBusy === item.id}
+                            className="px-2.5 py-1 hover:bg-gray-100 font-bold text-gray-700 disabled:opacity-30 transition-colors"
+                          >+</button>
+                        </div>
+                        <span className="text-gray-300">|</span>
+                        <button
+                          onClick={() => handleRemove(item.id, item.product_slug)}
+                          disabled={cartBusy === item.id}
+                          className="text-[12px] text-store-link hover:text-red-700 font-semibold hover:underline transition-colors disabled:opacity-40"
+                        >
+                          Remove
+                        </button>
+                        {item.custom_design_file && (
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-store-button bg-store-button/10 px-2 py-0.5 rounded-full">✨ Custom</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500 pt-2 px-2">
+              Need help? Check our <Link href="#" className="text-store-link hover:underline">Return &amp; Replacement Policy</Link>.
+            </p>
           </div>
 
           {/* Sidebar Summary Column */}

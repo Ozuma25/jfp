@@ -97,7 +97,7 @@ export default async function ProductsPage({ searchParams }: Props) {
 
           {data.results.length > 0 ? (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-12">
+              <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-x-5 gap-y-10">
                 {data.results.map((product) => (
                   <ProductCard key={product.slug} product={product} />
                 ))}

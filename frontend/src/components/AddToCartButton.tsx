@@ -8,12 +8,14 @@ import { fetchProductDetail } from "@/lib/catalog";
 
 export function AddToCartButton({
   productSlug,
+  variantId = null,
   quantity = 1,
   designFile = null,
   className = "mt-2 w-full",
   imageSrc,
 }: {
   productSlug: string;
+  variantId?: number | null;
   quantity?: number;
   designFile?: File | null;
   className?: string;
@@ -92,7 +94,7 @@ export function AddToCartButton({
         });
       } catch { /* ignore cache pre-warm fail */ }
 
-      await addToCart(productSlug, quantity, designFile);
+      await addToCart(productSlug, quantity, designFile, variantId);
       window.dispatchEvent(new Event("jfp-cart-updated"));
       setStatus("ok");
       setTimeout(() => setStatus("idle"), 2000);

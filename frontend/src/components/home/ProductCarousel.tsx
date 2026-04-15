@@ -47,7 +47,7 @@ function ProductCard({ p }: { p: CarouselProduct }) {
   }
 
   return (
-    <article className="w-[240px] md:w-[280px] shrink-0 snap-start flex flex-col group/card">
+    <article className="w-[calc(50%-12px)] md:w-[calc(20%-32px)] shrink-0 snap-start flex flex-col group/card">
       <Link href={`/products/${p.slug}`} className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-neutral-100 transition-all duration-300">
         {displayImages.length > 0 ? (
           <CloudImage

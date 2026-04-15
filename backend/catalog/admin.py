@@ -20,11 +20,21 @@ class ProductVariantImageInline(admin.TabularInline):
 class ProductVariantInline(admin.StackedInline):
     model = ProductVariant
     extra = 0
-    show_change_link = True
+    show_change_link = True  # click through to upload variant images
     fields = ("color", "size", "price_override", "stock", "sku_suffix", "sort_order")
     readonly_fields = ()
     verbose_name = "Variant (Color / Size)"
-    verbose_name_plural = "Variants (Colors & Sizes)"
+    verbose_name_plural = "Variants — add one row per Color/Size combination"
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        po = formset.form.base_fields.get("price_override")
+        if po:
+            po.help_text = (
+                "Leave blank to use the base product price above. "
+                "Set only if this color/size costs differently."
+            )
+        return formset
 
 
 @admin.register(Category)
@@ -70,6 +80,15 @@ class ProductAdmin(admin.ModelAdmin):
                     "min_qty",
                     "created_at",
                     "updated_at",
+                ),
+                "description": (
+                    "<strong>Price</strong>: Set the base selling price. "
+                    "If this product has NO variants (no colors/sizes), this is the final price shown to customers. "
+                    "If it HAS variants (added below), this is the <em>fallback</em> price — "
+                    "each variant can optionally override it. "
+                    "<br><br>"
+                    "<strong>Stock</strong>: For products WITH variants, set stock on each variant below instead. "
+                    "This base stock is only used for products with no variants."
                 ),
             },
         ),
@@ -178,6 +197,17 @@ class ProductAdmin(admin.ModelAdmin):
                 ),
                 level=messages.WARNING,
             )
+
+
+@admin.register(ProductVariant)
+class ProductVariantAdmin(admin.ModelAdmin):
+    """Separate admin for editing a variant and uploading its images."""
+    inlines = [ProductVariantImageInline]
+    list_display = ("product", "color", "size", "stock", "price_override")
+    list_filter = ("product__category", "color")
+    search_fields = ("product__name", "color", "size")
+    fields = ("product", "color", "size", "price_override", "stock", "sku_suffix", "sort_order")
+    autocomplete_fields = ["product"]
 
 
 @admin.register(SiteSettings)

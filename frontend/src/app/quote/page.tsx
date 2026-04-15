@@ -41,11 +41,11 @@ const labelCls = "block text-[11px] font-bold uppercase tracking-widest text-neu
 function QuoteFormContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const initialProduct = searchParams.get("product") || "";
+  const initialSku = searchParams.get("sku") || searchParams.get("product") || "";
   const initialQty = searchParams.get("qty") || "100";
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-  const [productSlug, setProductSlug] = useState(initialProduct);
+  const [productSlug, setProductSlug] = useState(initialSku);
   const [qty, setQty] = useState(initialQty);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -55,6 +55,14 @@ function QuoteFormContent() {
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+
+  // Guard: redirect unauthenticated users to login with full quote URL preserved
+  useEffect(() => {
+    if (!authLoading && !user) {
+      const quoteUrl = `/quote?sku=${initialSku}&qty=${initialQty}`;
+      router.replace(`/login?next=${encodeURIComponent(quoteUrl)}`);
+    }
+  }, [authLoading, user, initialSku, initialQty, router]);
 
   useEffect(() => {
     if (user) {
@@ -92,6 +100,15 @@ function QuoteFormContent() {
       setBusy(false);
     }
   };
+
+  // Show spinner while checking auth state (prevents form flash for guests)
+  if (authLoading || !user) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-6 h-6 border-2 border-store-button border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (success) {
     return (
@@ -152,9 +169,9 @@ function QuoteFormContent() {
               <label className={labelCls}>Product SKU / ID</label>
               <input required type="text" value={productSlug}
                 onChange={e => setProductSlug(e.target.value)}
-                readOnly={!!initialProduct}
-                className={`${inputCls} ${initialProduct ? "opacity-60 cursor-not-allowed" : ""}`}
-                placeholder="e.g. jfp-premium-box" />
+                readOnly={!!initialSku}
+                className={`${inputCls} ${initialSku ? "opacity-60 cursor-not-allowed" : ""}`}
+                placeholder="e.g. JFP-001" />
             </div>
             <div>
               <label className={labelCls}>Quantity Required</label>

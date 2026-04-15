@@ -51,39 +51,37 @@ export async function CategoryGrid() {
            <div className="w-16 h-[2px] bg-store-button mx-auto mt-6"></div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
-          {items.slice(0, 4).map((c) => (
+        <div className="flex flex-wrap justify-center gap-8 md:gap-12 lg:gap-16">
+          {items.slice(0, 8).map((c) => (
             <Link
               key={c.href}
               href={c.href}
-              className="group flex flex-col items-center cursor-pointer"
+              className="group flex flex-col items-center gap-4 cursor-pointer"
             >
-              <div className="relative aspect-[3/4] w-full bg-neutral-100 overflow-hidden rounded-t-[10rem] border-x border-t border-gray-100 shadow-sm transition-all duration-700 group-hover:shadow-2xl group-hover:translate-y-[-8px]">
-                {c.img ? (
-                  <CloudImage
-                    src={c.img}
-                    alt={c.label}
-                    fill
-                    className="object-cover transition-transform duration-1000 group-hover:scale-110"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                  />
-                ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center text-xs text-neutral-500">
-                    <span>No image</span>
-                  </div>
-                )}
-                
-                {/* Hover overlay */}
-                <div className="absolute inset-0 bg-store-navy/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                   <div className="bg-white px-6 py-2 text-[10px] uppercase font-bold tracking-widest text-store-navy transform translate-y-4 group-hover:translate-y-0 transition-transform">
-                      View Collection
-                   </div>
+              {/* Gold-bordered circle */}
+              <div className="relative p-[3px] rounded-full bg-gradient-to-br from-[#D4AF37] via-[#F0C75E] to-[#C59B27] shadow-md transition-all duration-500 group-hover:shadow-[0_0_0_4px_rgba(212,175,55,0.25)] group-hover:scale-105">
+                <div className="relative w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden bg-white">
+                  {c.img ? (
+                    <CloudImage
+                      src={c.img}
+                      alt={c.label}
+                      fill
+                      className="object-contain transition-transform duration-700 group-hover:scale-105 p-2"
+                      sizes="(max-width: 640px) 112px, 144px"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-[10px] text-neutral-400 uppercase tracking-widest">
+                      No image
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="mt-8 text-center">
-                 <h3 className="text-xl font-serif text-store-navy capitalize">{c.label}</h3>
-                 <span className="mt-2 text-[10px] uppercase tracking-widest font-bold text-store-button opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 inline-block">Explore Now</span>
+              {/* Label */}
+              <div className="text-center">
+                <h3 className="text-[13px] md:text-sm font-semibold text-store-navy capitalize tracking-wide leading-tight group-hover:text-store-button transition-colors duration-300">
+                  {c.label}
+                </h3>
               </div>
             </Link>
           ))}

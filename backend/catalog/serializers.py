@@ -128,6 +128,7 @@ class ProductDetailSerializer(ProductListSerializer):
     compare_at_price_display = serializers.SerializerMethodField()
     recent_sales_count = serializers.SerializerMethodField()
     variants = serializers.SerializerMethodField()
+    has_variants = serializers.SerializerMethodField()
 
     class Meta(ProductListSerializer.Meta):
         fields = ProductListSerializer.Meta.fields + (
@@ -137,7 +138,11 @@ class ProductDetailSerializer(ProductListSerializer):
             "created_at",
             "recent_sales_count",
             "variants",
+            "has_variants",
         )
+
+    def get_has_variants(self, obj: Product) -> bool:
+        return obj.variants.exists()
 
     def get_variants(self, obj: Product) -> list:
         qs = obj.variants.prefetch_related("images").all()

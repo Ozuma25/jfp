@@ -24,6 +24,8 @@ export type CartItem = {
   stock_warning: boolean;
   available_stock: number;
   custom_design_file: string | null;
+  variant_id: number | null;
+  variant_label: string | null;  // e.g. "Blue / Medium"
 };
 
 export type CartData = {
@@ -132,7 +134,12 @@ export async function fetchCart(): Promise<CartData> {
   return handleResponse<CartData>(res);
 }
 
-export async function addToCart(productSlug: string, quantity = 1, designFile?: File | null): Promise<CartData> {
+export async function addToCart(
+  productSlug: string,
+  quantity = 1,
+  designFile?: File | null,
+  variantId?: number | null
+): Promise<CartData> {
   if (!getAccessToken()) {
     addGuestCartItem(productSlug, quantity);
     return fetchGuestCartData();
@@ -146,9 +153,12 @@ export async function addToCart(productSlug: string, quantity = 1, designFile?: 
     body.append("product_slug", productSlug);
     body.append("quantity", quantity.toString());
     body.append("custom_design_file", designFile);
+    if (variantId != null) body.append("variant_id", variantId.toString());
     headers = cartHeaders({ isMultipart: true });
   } else {
-    body = JSON.stringify({ product_slug: productSlug, quantity });
+    const payload: Record<string, unknown> = { product_slug: productSlug, quantity };
+    if (variantId != null) payload.variant_id = variantId;
+    body = JSON.stringify(payload);
     headers = cartHeaders({ isMultipart: false });
   }
 

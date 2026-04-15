@@ -65,42 +65,56 @@ class CartItemListView(APIView):
         ser = CartItemWriteSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         product = ser.validated_data["product"]
-        qty = ser.validated_data["quantity"]
-        design = ser.validated_data.get("custom_design_file")
+        variant = ser.validated_data.get("variant")   # may be None
+        qty     = ser.validated_data["quantity"]
+        design  = ser.validated_data.get("custom_design_file")
+
+        # Effective price: variant override if set, else base product price
+        effective_price = (
+            variant.price_override
+            if variant and variant.price_override is not None
+            else product.price
+        )
 
         if design:
-            # Always create a new item for bespoke designs to avoid merging
-            item = CartItem.objects.create(
+            # Always create a new line for bespoke designs
+            CartItem.objects.create(
                 cart=cart,
                 product=product,
+                variant=variant,
                 quantity=qty,
-                price_at_add=product.price,
-                custom_design_file=design
+                price_at_add=effective_price,
+                custom_design_file=design,
             )
             created = True
         else:
             from django.db.models import Q
-            # Check for an existing item with the same product and no custom design
+            # Match same product + same variant (None variant = no variant)
             item = CartItem.objects.filter(
                 Q(custom_design_file=None) | Q(custom_design_file=''),
                 cart=cart,
                 product=product,
+                variant=variant,
             ).first()
-            
+
             if item:
                 new_qty = item.quantity + qty
-                # Re-validate the new total quantity (checks min_qty etc.)
-                ser_check = CartItemWriteSerializer(data={"product_slug": product.slug, "quantity": new_qty})
+                # Re-validate the new total quantity
+                ser_check = CartItemWriteSerializer(
+                    data={"product_slug": product.slug, "quantity": new_qty,
+                          "variant_id": variant.id if variant else None}
+                )
                 ser_check.is_valid(raise_exception=True)
                 item.quantity = new_qty
                 item.save(update_fields=["quantity"])
                 created = False
             else:
-                item = CartItem.objects.create(
+                CartItem.objects.create(
                     cart=cart,
                     product=product,
+                    variant=variant,
                     quantity=qty,
-                    price_at_add=product.price,
+                    price_at_add=effective_price,
                 )
                 created = True
 

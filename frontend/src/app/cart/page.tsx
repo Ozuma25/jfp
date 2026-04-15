@@ -3,12 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchCart, removeCartItem, updateCartItem, applyCoupon, removeCoupon, type CartData } from "@/lib/cartApi";
 
 export default function CartPage() {
   const { user } = useAuth();
   const cartOwnerKey = user ? `u${user.id}` : "anon";
+  const searchParams = useSearchParams();
+  const emptyFromCheckout = searchParams.get("empty") === "checkout";
   const [cart, setCart] = useState<CartData | null>(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
@@ -110,6 +113,19 @@ export default function CartPage() {
           </div>
         )}
 
+        {emptyFromCheckout && (
+          <div className="mb-8 flex items-start gap-4 p-5 bg-amber-50 border border-amber-200 rounded-xl animate-in fade-in slide-in-from-top-2 duration-500">
+            <span className="text-2xl shrink-0">🛒</span>
+            <div>
+              <p className="text-sm font-bold text-amber-800 mb-1">Your cart is empty — checkout cancelled</p>
+              <p className="text-xs text-amber-700">
+                You removed all items during checkout. Add items to continue shopping or{" "}
+                <Link href="/products" className="underline font-bold hover:text-amber-900">explore our collection</Link>.
+              </p>
+            </div>
+          </div>
+        )}
+
         {!cart || cart.items.length === 0 ? (
           <div className="py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
              <div className="text-6xl mb-6 grayscale opacity-20">🛍️</div>
@@ -162,6 +178,11 @@ export default function CartPage() {
                         >
                           {item.product_name}
                         </Link>
+                        {item.variant_label && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-store-button bg-store-button/10 border border-store-button/20 px-2 py-0.5 rounded-full">
+                            {item.variant_label}
+                          </span>
+                        )}
                         <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">{item.product_slug}</p>
                       </div>
                       <p className="text-lg font-bold text-store-navy/90">{item.line_total}</p>

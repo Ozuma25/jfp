@@ -2,7 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from catalog.models import Product
+from catalog.models import Product, ProductVariant
 
 
 class Cart(models.Model):
@@ -43,13 +43,21 @@ class Cart(models.Model):
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cart_items",
+        help_text="Selected color/size variant, if any.",
+    )
     quantity = models.PositiveIntegerField(default=1)
     price_at_add = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="Product price at the time the item was added to cart.",
+        help_text="Effective price (variant or base) at the time the item was added.",
     )
     custom_design_file = models.FileField(
         upload_to="cart_designs/%Y/%m/",
@@ -59,4 +67,11 @@ class CartItem(models.Model):
     )
 
     class Meta:
-        pass # Allow multiple items of same product for bespoke designs
+        pass  # Allow multiple items per product for bespoke designs
+
+    @property
+    def effective_price(self):
+        """Variant price override takes precedence over base product price."""
+        if self.variant and self.variant.price_override is not None:
+            return self.variant.price_override
+        return self.product.price

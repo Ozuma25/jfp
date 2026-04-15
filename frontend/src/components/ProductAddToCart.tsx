@@ -3,25 +3,37 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function ProductAddToCart({
   productSlug,
+  productSku,
+  effectiveSku,
+  variantId = null,
   minQty = 1,
   bulkThreshold,
   isCustomizable = false,
   imageSrc,
 }: {
   productSlug: string;
+  productSku?: string;
+  effectiveSku?: string;   // variant-specific SKU (base + suffix) for quote URL
+  variantId?: number | null;
   minQty?: number,
   bulkThreshold?: number | null,
   isCustomizable?: boolean,
   imageSrc?: string | null,
 }) {
+  const { user, loading: authLoading } = useAuth();
   const [qty, setQty] = useState(minQty);
   const [designFile, setDesignFile] = useState<File | null>(null);
   const [error, setError] = useState("");
 
   const MAX_BULK_QTY = 99999;
+
+  // Build the pre-filled quote URL — use variant-specific SKU if provided
+  const skuForQuote = effectiveSku || productSku || productSlug;
+  const quoteUrl = `/quote?sku=${skuForQuote}&qty=${qty}`;
   const isBulk = bulkThreshold ? qty > bulkThreshold : false;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,7 +119,14 @@ export function ProductAddToCart({
         </div>
         <div className="flex-1 min-w-[200px]">
           {!isBulk ? (
-            <AddToCartButton productSlug={productSlug} quantity={qty} designFile={designFile} imageSrc={imageSrc} className="w-full bg-store-navy text-white hover:bg-store-button hover:text-black shadow-md py-3 text-[10px] font-bold uppercase tracking-[0.2em] rounded-md border-none h-11 transition-all" />
+            <AddToCartButton
+              productSlug={productSlug}
+              variantId={variantId}
+              quantity={qty}
+              designFile={designFile}
+              imageSrc={imageSrc}
+              className="w-full bg-store-navy text-white hover:bg-store-button hover:text-black shadow-md py-3 text-[10px] font-bold uppercase tracking-[0.2em] rounded-md border-none h-11 transition-all"
+            />
           ) : (
             <div className="h-12 w-full flex items-center justify-center bg-gray-100 text-gray-400 text-[10px] font-bold uppercase tracking-widest cursor-not-allowed">
               Exceeds Cart Capacity
@@ -125,16 +144,53 @@ export function ProductAddToCart({
         )}
 
         {isBulk && (
-          <div className="animate-in fade-in slide-in-from-top-2 duration-500">
-            <Link
-              href={`/quote?product=${productSlug}&qty=${qty}`}
-              className="block w-full text-center py-3 border-2 border-store-button rounded-md text-[10px] font-bold uppercase tracking-[0.2em] text-store-navy hover:bg-store-button hover:text-black transition-all shadow-sm"
-            >
-              Request Bulk Boutique Quote
-            </Link>
-            <p className="mt-2 text-[9px] text-center text-neutral-400 font-medium italic">
-              Great choice! Quantities above {bulkThreshold} pieces qualify for handcrafted custom pricing.
-            </p>
+          <div className="animate-in fade-in slide-in-from-top-2 duration-500 space-y-3">
+            {!authLoading && user ? (
+              /* ── Logged-in: go straight to quote form ── */
+              <>
+                <Link
+                  href={quoteUrl}
+                  className="block w-full text-center py-3 border-2 border-store-button rounded-md text-[10px] font-bold uppercase tracking-[0.2em] text-store-navy hover:bg-store-button hover:text-black transition-all shadow-sm"
+                >
+                  Request Bulk Boutique Quote
+                </Link>
+                <p className="text-[9px] text-center text-neutral-400 font-medium italic">
+                  Great choice! Quantities above {bulkThreshold} pieces qualify for handcrafted custom pricing.
+                </p>
+              </>
+            ) : !authLoading && !user ? (
+              /* ── Guest: inline auth prompt ── */
+              <div className="rounded-xl border border-store-button/30 bg-amber-50/60 p-5 space-y-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-xl shrink-0 mt-0.5">🔐</span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-store-navy mb-1">
+                      Sign in to request a bulk quote
+                    </p>
+                    <p className="text-[10px] text-neutral-500 leading-relaxed">
+                      Create a free account or log in — your product details will be pre-filled automatically.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Link
+                    href={`/login?next=${encodeURIComponent(quoteUrl)}`}
+                    className="block text-center py-2.5 bg-store-navy text-white text-[10px] font-bold uppercase tracking-[0.15em] rounded-lg hover:bg-store-button hover:text-black transition-all shadow-sm"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href={`/register?next=${encodeURIComponent(quoteUrl)}`}
+                    className="block text-center py-2.5 border-2 border-store-navy text-store-navy text-[10px] font-bold uppercase tracking-[0.15em] rounded-lg hover:bg-store-navy hover:text-white transition-all"
+                  >
+                    Create Account
+                  </Link>
+                </div>
+                <p className="text-[9px] text-center text-neutral-400 font-medium italic">
+                  Quantities above {bulkThreshold} pieces qualify for handcrafted custom pricing.
+                </p>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
