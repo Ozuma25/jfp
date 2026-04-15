@@ -47,7 +47,8 @@ def send_email_sync(
     url = "https://api.resend.com/emails"
     headers = {
         "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "User-Agent": "JFP-Backend/1.0"
     }
     
     payload = {
