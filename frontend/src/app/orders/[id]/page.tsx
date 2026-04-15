@@ -129,7 +129,14 @@ export default function OrderDetailPage() {
     }
   };
 
-  useEffect(() => { if (user && id) loadOrder(); }, [user, id]);
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.push(`/login?next=/orders/${id}`);
+      return;
+    }
+    if (id) loadOrder();
+  }, [user, id, authLoading, router]);
 
   useEffect(() => {
     if (searchParams.get("error") === "payment_failed") {
@@ -183,9 +190,9 @@ export default function OrderDetailPage() {
     } catch (e) { setActionErr("Gateway error."); } finally { setBusy(false); }
   }
 
-  if (authLoading || loadingOrder) return <div className="loading-state">Accessing Order Ledger...</div>;
-  if (!user) return <div className="p-5 text-center font-serif">Unauthorized Access.</div>;
-  if (err || !order) return <div className="p-5 text-center text-danger font-serif">{err || "Order not located."}</div>;
+  if (authLoading || (loadingOrder && user)) return <div className="p-5 text-center font-serif text-gray-500 mt-10">Accessing Order Ledger...</div>;
+  if (!user) return <div className="p-5 text-center font-serif mt-10">Redirecting to secure login...</div>;
+  if (err || !order) return <div className="p-5 text-center text-danger font-serif mt-10">{err || "Order not located."}</div>;
 
   return (
     <div className="order-details-modern animate-in fade-in">
