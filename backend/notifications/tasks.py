@@ -1,15 +1,16 @@
+import json
+import urllib.request
 import logging
-from django.core.mail import EmailMessage
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 from cart.models import Cart
+import os
 
 logger = logging.getLogger(__name__)
 
 # Centralised reply-to for all transactional emails
 REPLY_TO = "Jai Fancy Packs Support <support@jaifancypacks.com>"
-
 
 def send_email_sync(
     subject: str,
@@ -21,8 +22,9 @@ def send_email_sync(
     template_context: dict = None,
 ):
     """
-    Send a transactional email via Resend SMTP.
-    If template_context is provided, it renders 'notifications/email_action.html'.
+    Send a transactional email via Resend's HTTP API.
+    (We use HTTP instead of SMTP because Render blocks outbound SMTP ports 587/465 on free tiers, 
+    causing server timeouts and 500 errors).
     """
     if not from_email:
         if email_type == "order":
@@ -37,20 +39,41 @@ def send_email_sync(
         except Exception as e:
             logger.error(f"Failed to render email template: {e}")
 
+    api_key = os.environ.get("EMAIL_HOST_PASSWORD", "")
+    if not api_key:
+        logger.error("Missing Resend API Key (EMAIL_HOST_PASSWORD). Cannot send email.")
+        return
+
+    url = "https://api.resend.com/emails"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "from": from_email,
+        "to": recipient_list,
+        "subject": subject,
+        "reply_to": REPLY_TO
+    }
+    
+    if html_message:
+        payload["html"] = html_message
+    else:
+        payload["text"] = message
+
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers=headers)
+
     try:
-        logger.info(f"Sending email [{email_type}]: '{subject}' → {recipient_list}")
-        email = EmailMessage(
-            subject=subject,
-            body=html_message or message,
-            from_email=from_email,
-            to=recipient_list,
-            reply_to=[REPLY_TO],
-        )
-        if html_message:
-            email.content_subtype = "html"
-        email.send(fail_silently=False)
+        logger.info(f"Sending email over HTTP [{email_type}]: '{subject}' → {recipient_list}")
+        # 10s timeout prevents the server from hanging indefinitely
+        with urllib.request.urlopen(req, timeout=10) as response:
+            res_data = response.read()
+            logger.info(f"Resend accepted email: {res_data}")
     except Exception as exc:
-        logger.error(f"Email send failed: {exc}")
+        logger.error(f"HTTP Email send failed: {exc}")
+
 
 def check_abandoned_carts():
     """
