@@ -141,7 +141,8 @@ export async function addToCart(
   variantId?: number | null
 ): Promise<CartData> {
   if (!getAccessToken()) {
-    addGuestCartItem(productSlug, quantity);
+    // Must await — addGuestCartItem is async (fetches price snapshot before writing localStorage)
+    await addGuestCartItem(productSlug, quantity);
     return fetchGuestCartData();
   }
 

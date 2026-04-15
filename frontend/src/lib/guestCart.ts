@@ -123,6 +123,8 @@ export async function fetchGuestCartData(): Promise<CartData> {
         stock_warning: stockWarning,
         available_stock: product.stock,
         custom_design_file: null,
+        variant_id: null,
+        variant_label: null,
       });
 
       // Update stored price if it was missing (self-healing for old guest carts)
