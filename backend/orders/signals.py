@@ -8,37 +8,10 @@ from notifications.tasks import send_email_sync
 @receiver(post_save, sender=Order)
 def order_status_changed_notification(sender, instance, created, **kwargs):
     frontend = settings.FRONTEND_URL
-    order_url = f"{frontend}/account/orders/{instance.order_number}"
+    order_url = f"{frontend}/orders/{instance.order_number}"
 
     if created:
-        if instance.status == Order.Status.PENDING_PAYMENT:
-            send_email_sync(
-                subject=f"[JFP] Order Confirmed #{instance.order_number} — Payment Pending",
-                message=(
-                    f"Hi {instance.shipping_name},\n\n"
-                    f"Your order #{instance.order_number} has been placed!\n"
-                    f"Total: ₹{instance.total}\n\n"
-                    f"Please complete your payment to start production:\n{order_url}\n\n"
-                    f"Thank you for choosing Jai Fancy Packs."
-                ),
-                recipient_list=[instance.user.email],
-                email_type="order",
-                template_context={
-                    "title": "Order Placed",
-                    "greeting": f"Hi {instance.shipping_name}",
-                    "paragraphs": [
-                        f"Your order <strong>#{instance.order_number}</strong> has been successfully placed.",
-                        "Please complete your payment so we can begin preparing your items."
-                    ],
-                    "meta_info": [
-                        ("Order Total", f"₹{instance.total}"),
-                        ("Status", "Pending Payment")
-                    ],
-                    "action_url": order_url,
-                    "action_text": "Complete Payment",
-                }
-            )
-        elif instance.status == Order.Status.UNDER_REVIEW:
+        if instance.status == Order.Status.UNDER_REVIEW:
             send_email_sync(
                 subject=f"[JFP] Bespoke Design Received — Order #{instance.order_number}",
                 message=(
