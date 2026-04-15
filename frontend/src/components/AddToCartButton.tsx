@@ -142,7 +142,7 @@ export function AddToCartButton({
           <p className="text-[10px] text-red-700 font-bold leading-relaxed">
             {err}
             {errCode === "BULK_QUOTE_REQUIRED" && (
-              <Link href={`/quote?product=${productSku || productSlug}&qty=${quantity}`} className="inline-block mt-1 underline decoration-red-200 hover:decoration-red-500 transition-colors uppercase tracking-widest ml-1">
+              <Link href={`/quote?sku=${productSku || productSlug}&qty=${quantity}`} className="inline-block mt-1 underline decoration-red-200 hover:decoration-red-500 transition-colors uppercase tracking-widest ml-1">
                 Request Quote Instead
               </Link>
             )}

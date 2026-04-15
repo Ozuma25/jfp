@@ -25,8 +25,17 @@ class BulkQuoteRequestSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
-        product_slug = validated_data.pop("product")["slug"]
-        product = Product.objects.get(slug=product_slug)
+        product_identifier = validated_data.pop("product")["slug"]  # field value from frontend
+
+        # Try slug first, then SKU — the frontend now sends the real SKU
+        product = (
+            Product.objects.filter(slug=product_identifier).first()
+            or Product.objects.filter(sku__iexact=product_identifier).first()
+        )
+        if not product:
+            raise serializers.ValidationError(
+                {"product_slug": f"No product found with slug or SKU '{product_identifier}'."}
+            )
         return BulkQuoteRequest.objects.create(product=product, **validated_data)
 
 

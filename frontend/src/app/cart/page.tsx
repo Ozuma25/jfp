@@ -17,6 +17,8 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true);
   const [couponCode, setCouponCode] = useState("");
   const [isCouponLoading, setIsCouponLoading] = useState(false);
+  // Tracks which cart item ID the user just tried to exceed the bulk threshold on
+  const [bulkLimitHitId, setBulkLimitHitId] = useState<number | null>(null);
 
   const load = useCallback(async (opts?: { showSpinner?: boolean }) => {
     setErr("");
@@ -64,6 +66,7 @@ export default function CartPage() {
   }, [load, cartOwnerKey]);
 
   async function setQty(id: number, q: number, slug: string) {
+    setBulkLimitHitId(null); // clear bulk-limit warning whenever qty changes
     try {
       const c = await updateCartItem(id, q, slug);
       setCart(c);
@@ -220,25 +223,61 @@ export default function CartPage() {
                     )}
 
                     <div className="mt-8 flex flex-wrap items-center justify-between gap-6 pt-6 border-t border-gray-50">
-                      <div className="flex items-center gap-4">
-                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">Atelier Qty:</span>
-                        <div className="flex items-center border border-gray-100 bg-neutral-50 pr-4">
-                          <button
-                            onClick={() => setQty(item.id, Math.max(1, item.quantity - 1), item.product_slug)}
-                            className="px-4 py-2 hover:bg-white hover:text-store-button transition-colors text-xs font-bold"
-                          >–</button>
-                          <span className={`px-4 py-2 text-xs font-bold min-w-[3rem] text-center ${
-                            item.stock_warning ? "text-red-600" : "text-store-navy"
-                          }`}>{item.quantity}</span>
-                          <button
-                            onClick={() => setQty(item.id, Math.min(item.bulk_threshold, item.quantity + 1), item.product_slug)}
-                            className="px-4 py-2 hover:bg-white hover:text-store-button transition-colors text-xs font-bold"
-                          >+</button>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-4">
+                          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">Atelier Qty:</span>
+                          <div className="flex items-center border border-gray-100 bg-neutral-50 pr-4">
+                            <button
+                              onClick={() => setQty(item.id, Math.max(1, item.quantity - 1), item.product_slug)}
+                              className="px-4 py-2 hover:bg-white hover:text-store-button transition-colors text-xs font-bold"
+                            >–</button>
+                            <span className={`px-4 py-2 text-xs font-bold min-w-[3rem] text-center ${
+                              item.stock_warning ? "text-red-600" : "text-store-navy"
+                            }`}>{item.quantity}</span>
+                            <button
+                              onClick={() => {
+                                if (item.quantity < item.bulk_threshold) {
+                                  setQty(item.id, item.quantity + 1, item.product_slug);
+                                } else {
+                                  // User tried to exceed threshold — show the nudge
+                                  setBulkLimitHitId(item.id);
+                                }
+                              }}
+                              title={item.quantity >= item.bulk_threshold ? `Max ${item.bulk_threshold} units — request a bulk quote for more` : undefined}
+                              className={`px-4 py-2 transition-colors text-xs font-bold ${
+                                item.quantity >= item.bulk_threshold
+                                  ? "opacity-30 cursor-not-allowed"
+                                  : "hover:bg-white hover:text-store-button"
+                              }`}
+                            >+</button>
+                          </div>
+                          {item.stock_warning && (
+                            <span className="text-[9px] font-bold text-red-500 uppercase tracking-wider">
+                              Max: {item.available_stock}
+                            </span>
+                          )}
                         </div>
-                        {item.stock_warning && (
-                          <span className="text-[9px] font-bold text-red-500 uppercase tracking-wider">
-                            Max: {item.available_stock}
-                          </span>
+
+                        {/* Bulk threshold nudge — only when user actively tried to go beyond */}
+                        {bulkLimitHitId === item.id && (
+                          <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 animate-in fade-in slide-in-from-top-1 duration-300">
+                            <span className="text-amber-500 text-base mt-0.5 shrink-0">📦</span>
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700">
+                                Cart limit reached ({item.bulk_threshold} units max)
+                              </p>
+                              <p className="text-xs text-amber-600 mt-0.5">
+                                Need more than {item.bulk_threshold} pieces?{" "}
+                                <Link
+                                  href={`/quote?sku=${item.effective_sku}&qty=${item.bulk_threshold + 1}`}
+                                  className="font-bold underline underline-offset-2 hover:text-amber-800 transition-colors"
+                                >
+                                  Request a bulk quote
+                                </Link>{" "}
+                                for custom pricing on large orders.
+                              </p>
+                            </div>
+                          </div>
                         )}
                       </div>
 

@@ -155,13 +155,26 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
 }
 
-# --- Email ---
+# --- Email (Resend SMTP) ---
 EMAIL_BACKEND = os.environ.get(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
 )
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "orders@jaifancypacks.com")
+EMAIL_HOST      = os.environ.get("EMAIL_HOST", "smtp.resend.com")
+EMAIL_PORT      = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_USE_TLS   = os.environ.get("EMAIL_USE_TLS", "1") in ("1", "true", "True", "yes")
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "resend")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")  # Resend API key
 
-# Admin notification email (for bespoke order alerts, etc.)
+# FROM addresses
+# - ORDER_FROM_EMAIL  → for order confirmations, payment, shipping
+# - NOREPLY_FROM_EMAIL → for auth (OTP, registration), quotes, system notifications
+ORDER_FROM_EMAIL   = os.environ.get("ORDER_FROM_EMAIL",   "Jai Fancy Packs Orders <orders@jaifancypacks.com>")
+NOREPLY_FROM_EMAIL = os.environ.get("NOREPLY_FROM_EMAIL", "Jai Fancy Packs <noreply@jaifancypacks.com>")
+
+# Backwards-compatible alias (used in many places already)
+DEFAULT_FROM_EMAIL = NOREPLY_FROM_EMAIL
+
+# Admin notification email
 ADMINS_EMAIL = os.environ.get("ADMINS_EMAIL", "")
 
 # Frontend and backend URLs (used in emails and notifications)

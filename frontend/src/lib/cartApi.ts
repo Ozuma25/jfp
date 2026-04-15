@@ -14,6 +14,8 @@ export type CartItem = {
   id: number;
   product_slug: string;
   product_name: string;
+  product_sku: string;          // base product SKU e.g. JFP-GFT-BG
+  effective_sku: string;        // variant-aware SKU e.g. JFP-GFT-BG-BLU-M
   product_image: string | null;
   quantity: number;
   unit_price: string;

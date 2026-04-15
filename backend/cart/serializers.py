@@ -10,6 +10,8 @@ from catalog.utils import effective_bulk_threshold
 class CartItemSerializer(serializers.ModelSerializer):
     product_slug   = serializers.SlugField(source="product.slug", read_only=True)
     product_name   = serializers.CharField(source="product.name", read_only=True)
+    product_sku    = serializers.CharField(source="product.sku",  read_only=True)
+    effective_sku  = serializers.SerializerMethodField()  # base_sku[-suffix] for variant items
     product_image  = serializers.SerializerMethodField()
     unit_price     = serializers.SerializerMethodField()   # uses effective_price
     line_total     = serializers.SerializerMethodField()
@@ -33,6 +35,8 @@ class CartItemSerializer(serializers.ModelSerializer):
             "id",
             "product_slug",
             "product_name",
+            "product_sku",
+            "effective_sku",
             "product_image",
             "quantity",
             "unit_price",
@@ -65,6 +69,12 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     def get_unit_price(self, obj):
         return str(obj.effective_price.quantize(Decimal("0.01")))
+
+    def get_effective_sku(self, obj):
+        base = obj.product.sku or obj.product.slug
+        if obj.variant and obj.variant.sku_suffix:
+            return f"{base}-{obj.variant.sku_suffix}"
+        return base
 
     def get_variant_label(self, obj):
         if not obj.variant:

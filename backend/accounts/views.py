@@ -36,9 +36,22 @@ class RegisterView(generics.CreateAPIView):
         
         subject = "Welcome to Jai Fancy Packs - Verify Your Email"
         message = f"Hello {user.first_name},\n\nWelcome! Please verify your email: {verify_url}"
-        html_message = f"<p>Hello {user.first_name},</p><p>Welcome to our atelier. Please <a href='{verify_url}'>verify your email</a> to start shopping.</p>"
         
-        send_email_sync(subject, message, [user.email], html_message=html_message)
+        send_email_sync(
+            subject=subject,
+            message=message,
+            recipient_list=[user.email],
+            template_context={
+                "title": "Welcome to the Atelier",
+                "greeting": f"Hello {user.first_name or 'there'}",
+                "paragraphs": [
+                    "Thank you for joining Jai Fancy Packs. We specialize in premium gifting and boutique packaging.",
+                    "Please verify your email address to complete your registration and start shopping."
+                ],
+                "action_url": verify_url,
+                "action_text": "Verify Email",
+            }
+        )
 
         return Response(
             {"id": user.id, "email": user.email, "message": "Registered successfully. Verification email sent."},
@@ -91,9 +104,22 @@ class ResendVerificationEmailView(APIView):
 
         subject = "Verify your Jai Fancy Packs Account"
         message = f"Hello {user.first_name},\n\nPlease verify your email by clicking the link below:\n\n{verify_url}\n\nThank you!"
-        html_message = f"<p>Hello {user.first_name},</p><p>Please verify your email by clicking the link below:</p><p><a href='{verify_url}'>Verify Email</a></p>"
-
-        send_email_sync(subject, message, [user.email], html_message=html_message)
+        
+        send_email_sync(
+            subject=subject, 
+            message=message, 
+            recipient_list=[user.email],
+            template_context={
+                "title": "Verify Your Email",
+                "greeting": f"Hello {user.first_name or 'there'}",
+                "paragraphs": [
+                    "You recently requested to resend your email verification link.",
+                    "Please verify your email address to secure your account."
+                ],
+                "action_url": verify_url,
+                "action_text": "Verify Email",
+            }
+        )
 
         return Response({"message": "Verification email sent!"}, status=status.HTTP_200_OK)
 
@@ -117,9 +143,22 @@ class PasswordResetRequestView(APIView):
 
             subject = "Reset your Jai Fancy Packs Password"
             message = f"Hello,\n\nYou requested a password reset. Click the link below to set a new password:\n\n{reset_url}\n\nIf you did not request this, please ignore this email."
-            html_message = f"<p>Hello,</p><p>You requested a password reset. Click the link below to set a new password:</p><p><a href='{reset_url}'>Reset Password</a></p><p>If you did not request this, please ignore this email.</p>"
 
-            send_email_sync(subject, message, [user.email], html_message=html_message)
+            send_email_sync(
+                subject=subject, 
+                message=message, 
+                recipient_list=[user.email], 
+                template_context={
+                    "title": "Reset Your Password",
+                    "greeting": f"Hello {user.first_name or 'there'}",
+                    "paragraphs": [
+                        "We received a request to reset the password for your Jai Fancy Packs account.",
+                        "If you made this request, please click the button below to set a new password. If you didn't, you can safely ignore this email."
+                    ],
+                    "action_url": reset_url,
+                    "action_text": "Reset Password",
+                }
+            )
         else:
             print("DEBUG: User not found.")
 

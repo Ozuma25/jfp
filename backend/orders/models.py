@@ -27,12 +27,23 @@ class BulkQuoteRequest(models.Model):
 
     is_resolved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    quoted_at  = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Timestamp when admin sent the price quote to the customer."
+    )
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
         return f"Quote #{self.pk} - {self.name} ({self.product.name} x {self.quantity})"
+
+    def save(self, *args, **kwargs):
+        # Auto-stamp quoted_at the first time status becomes QUOTED
+        if self.status == self.Status.QUOTED and self.quoted_at is None:
+            from django.utils import timezone
+            self.quoted_at = timezone.now()
+        super().save(*args, **kwargs)
 
 
 

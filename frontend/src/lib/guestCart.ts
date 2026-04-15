@@ -113,6 +113,8 @@ export async function fetchGuestCartData(): Promise<CartData> {
         id: Math.random(),
         product_slug: product.slug,
         product_name: product.title,
+        product_sku: product.sku,
+        effective_sku: product.sku,   // guest cart doesn't track variants
         product_image: product.image,
         quantity: guestItem.quantity,
         unit_price: product.price,
