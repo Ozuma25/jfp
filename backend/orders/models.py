@@ -38,12 +38,21 @@ class BulkQuoteRequest(models.Model):
     def __str__(self):
         return f"Quote #{self.pk} - {self.name} ({self.product.name} x {self.quantity})"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._initial_status = self.status
+
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        self._status_actually_changed = not is_new and self.status != getattr(self, '_initial_status', self.status)
+        
         # Auto-stamp quoted_at the first time status becomes QUOTED
         if self.status == self.Status.QUOTED and self.quoted_at is None:
             from django.utils import timezone
             self.quoted_at = timezone.now()
+        
         super().save(*args, **kwargs)
+        self._initial_status = self.status
 
 
 
@@ -113,6 +122,14 @@ class Order(models.Model):
     razorpay_payment_id = models.CharField(max_length=255, blank=True)
     admin_rejection_reason = models.TextField(blank=True, help_text="Reason for design rejection.")
 
+    invoice_pdf = models.FileField(
+        upload_to="invoices/%Y/%m/",
+        null=True,
+        blank=True,
+        help_text="Upload official GST Invoice PDF here. This will be emailed to the customer."
+    )
+    invoice_emailed = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -122,13 +139,21 @@ class Order(models.Model):
     def __str__(self):
         return f"Order {self.order_number or self.pk} ({self.status})"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._initial_status = self.status
+
     def save(self, *args, **kwargs):
         is_new = self.pk is None
+        self._status_actually_changed = not is_new and self.status != getattr(self, '_initial_status', self.status)
+
         super().save(*args, **kwargs)
         if is_new and not self.order_number:
             from .utils import generate_order_number
             self.order_number = generate_order_number(self)
             self.save(update_fields=['order_number'])
+        
+        self._initial_status = self.status
 
 
 class OrderLine(models.Model):

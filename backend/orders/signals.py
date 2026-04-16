@@ -37,7 +37,10 @@ def order_status_changed_notification(sender, instance, created, **kwargs):
             )
         return
 
-    # Status change notifications
+    # Status change notifications - ONLY FIRE IF STATUS CHANGED!
+    if not getattr(instance, '_status_actually_changed', False):
+        return
+
     if instance.status == Order.Status.PAID:
         send_email_sync(
             subject=f"[JFP] Payment Received — Order #{instance.order_number} ✅",
@@ -204,6 +207,51 @@ def order_status_changed_notification(sender, instance, created, **kwargs):
             }
         )
 
+@receiver(post_save, sender=Order)
+def order_invoice_notification(sender, instance, **kwargs):
+    if instance.invoice_pdf and not instance.invoice_emailed:
+        from notifications.tasks import send_email_sync
+        from django.conf import settings
+        import base64
+        
+        frontend = settings.FRONTEND_URL
+        order_url = f"{frontend}/orders/{instance.order_number}"
+        
+        try:
+            instance.invoice_pdf.open()
+            encoded_pdf = base64.b64encode(instance.invoice_pdf.read()).decode("utf-8")
+            instance.invoice_pdf.close()
+            
+            attachments = [{
+                "filename": f"GST_Invoice_{instance.order_number}.pdf",
+                "content": encoded_pdf
+            }]
+            
+            send_email_sync(
+                subject=f"[JFP] GST Invoice for Order #{instance.order_number}",
+                message=f"Hi {instance.shipping_name},\n\nPlease find attached the official GST invoice for your order.\n\nThank you for choosing Jai Fancy Packs.",
+                recipient_list=[instance.user.email],
+                email_type="order",
+                attachments=attachments,
+                template_context={
+                    "title": "GST Invoice Generated",
+                    "greeting": f"Hi {instance.shipping_name}",
+                    "paragraphs": [
+                        f"We have successfully generated the official GST Invoice for your order <strong>#{instance.order_number}</strong>.",
+                        "Please find the invoice PDF safely attached to this email for your accounting records."
+                    ],
+                    "action_url": order_url,
+                    "action_text": "View Order",
+                }
+            )
+            
+            Order.objects.filter(pk=instance.pk).update(invoice_emailed=True)
+            instance.invoice_emailed = True
+            
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to email invoice for #{instance.order_number}: {e}")
+
 
 @receiver(post_save, sender=BulkQuoteRequest)
 def bulk_quote_status_changed_notification(sender, instance, created, **kwargs):
@@ -230,6 +278,10 @@ def bulk_quote_status_changed_notification(sender, instance, created, **kwargs):
                 "action_text": "Track Your Quotes",
             }
         )
+        return
+
+    # ONLY FIRE IF STATUS ACTUALLY CHANGED!
+    if not getattr(instance, '_status_actually_changed', False):
         return
 
     if instance.status == BulkQuoteRequest.Status.QUOTED:

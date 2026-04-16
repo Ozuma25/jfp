@@ -28,7 +28,7 @@ def generate_order_receipt_pdf(order):
         'Title',
         parent=styles['Heading1'],
         fontSize=26,
-        textColor=colors.HexColor("#1a1a1a"),
+        textColor=colors.HexColor("#004B6E"),
         spaceAfter=0.5*cm,
         fontName='Helvetica-Bold'
     )
@@ -37,7 +37,7 @@ def generate_order_receipt_pdf(order):
         'Subtitle',
         parent=styles['Normal'],
         fontSize=10,
-        textColor=colors.HexColor("#c8a96e"),
+        textColor=colors.HexColor("#D4AF37"),
         leading=14,
         textTransform='uppercase',
         letterSpacing=2
@@ -47,15 +47,23 @@ def generate_order_receipt_pdf(order):
         'Info',
         parent=styles['Normal'],
         fontSize=9,
-        textColor=colors.HexColor("#666666"),
+        textColor=colors.HexColor("#334155"),
         leading=12
+    )
+    
+    item_name_style = ParagraphStyle(
+        'ItemName',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.HexColor("#004B6E"),
+        leading=11
     )
 
     elements = []
 
     # --- Header ---
     elements.append(Paragraph("Jai Fancy Packs", title_style))
-    elements.append(Paragraph("Premium Gifting & Boutique Packaging — Estd. 1994", subtitle_style))
+    elements.append(Paragraph("Premium Gifting & Boutique Packaging — Estd. 2023", subtitle_style))
     elements.append(Spacer(1, 1*cm))
 
     # --- Order Info & Addresses ---
@@ -94,7 +102,7 @@ def generate_order_receipt_pdf(order):
         l_total = line.line_total or 0
         
         table_data.append([
-            p_name,
+            Paragraph(p_name, item_name_style),
             f"Rs. {u_price}",
             f"{g_pct}%",
             str(qty),
@@ -106,11 +114,11 @@ def generate_order_receipt_pdf(order):
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('FONTSIZE', (0,0), (-1,0), 10),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1a1a1a")),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#004B6E")),
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
         ('ALIGN', (1,1), (-1,-1), 'RIGHT'),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#eeeeee")),
+        ('GRID', (0,1), (-1,-1), 0.5, colors.HexColor("#e2e8f0")),
         ('BOTTOMPADDING', (0,0), (-1,-1), 8),
         ('TOPPADDING', (0,0), (-1,-1), 8),
     ]))
@@ -138,7 +146,7 @@ def generate_order_receipt_pdf(order):
         ('FONTNAME', (-2,-1), (-1,-1), 'Helvetica-Bold'),
         ('FONTSIZE', (-2,-1), (-1,-1), 12),
         ('TOPPADDING', (0,-1), (-1,-1), 10),
-        ('LINEABOVE', (0,-1), (-1,-1), 2, colors.HexColor("#c8a96e")),
+        ('LINEABOVE', (0,-1), (-1,-1), 2, colors.HexColor("#D4AF37")),
     ]))
     elements.append(summary_table)
 

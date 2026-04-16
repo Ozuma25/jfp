@@ -124,6 +124,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "tracking_number",
             "tracking_provider",
             "tracking_url",
+            "invoice_pdf",
             "created_at",
             "lines",
             "history",

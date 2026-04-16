@@ -20,6 +20,7 @@ def send_email_sync(
     html_message: str = None,
     email_type: str = "noreply",  # "order" → orders@..., "noreply" → noreply@...
     template_context: dict = None,
+    attachments: list = None,
 ):
     """
     Send a transactional email via Resend's HTTP API.
@@ -62,6 +63,9 @@ def send_email_sync(
         payload["html"] = html_message
     else:
         payload["text"] = message
+        
+    if attachments:
+        payload["attachments"] = attachments
 
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers=headers)

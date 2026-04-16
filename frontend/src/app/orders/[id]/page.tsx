@@ -245,10 +245,27 @@ export default function OrderDetailPage() {
                       </div>
                    </div>
                    {!["pending_payment", "under_review", "design_rejected", "design_approved"].includes(order.status) && (
-                     <button onClick={handleDownloadReceipt} disabled={busy} className="btn-invoice">
-                        <svg width="14" height="14" fill="currentColor" className="me-2" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
-                        Receipt
-                     </button>
+                     <div className="text-end d-flex flex-column align-items-end gap-2">
+                       <div className="d-flex gap-2">
+                         <button onClick={handleDownloadReceipt} disabled={busy} className="btn-invoice">
+                            <svg width="14" height="14" fill="currentColor" className="me-2" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                            Receipt
+                         </button>
+                         {order.invoice_pdf && (
+                           <a 
+                             href={order.invoice_pdf.includes("cloudinary.com") ? order.invoice_pdf.replace("/upload/", "/upload/fl_attachment:JFP_Invoice/") : order.invoice_pdf} 
+                             download={`Invoice_${order.order_number}.pdf`} 
+                             className="btn-invoice text-decoration-none"
+                           >
+                             <svg width="14" height="14" fill="currentColor" className="me-2" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                             Invoice
+                           </a>
+                         )}
+                       </div>
+                       {!order.invoice_pdf && (
+                         <p className="mt-1 mb-0" style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>GST invoice will be emailed<br/>within 1 business day.</p>
+                       )}
+                     </div>
                    )}
                 </div>
 

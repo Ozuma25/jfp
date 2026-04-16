@@ -42,6 +42,7 @@ class OrderAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {"fields": ("order_number", "user", "status", "currency", "subtotal", "total")}),
         ("Bespoke Review", {"fields": ("admin_rejection_reason",)}),
+        ("Documents", {"fields": ("invoice_pdf", "invoice_emailed")}),
         ("Shipping", {"fields": ("shipping_name", "shipping_phone", "shipping_address_line1", "shipping_address_line2", "shipping_city", "shipping_state", "shipping_postal_code")}),
         ("Payment Details", {"fields": ("razorpay_order_id", "razorpay_payment_id")}),
     )
