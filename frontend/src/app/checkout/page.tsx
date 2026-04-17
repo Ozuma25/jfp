@@ -142,7 +142,7 @@ export default function CheckoutPage() {
         }
       },
       prefill: user?.email ? { email: user.email, name: shipping_name } : { name: shipping_name },
-      theme: { color: "#004B6E" },
+      theme: { color: "#08043D" },
       modal: {
         ondismiss: function () {
           window.dispatchEvent(new Event("jfp-cart-updated"));

@@ -94,21 +94,73 @@ export function FilterSidebar({ categories }: Props) {
       {/* Price Range Filter */}
       <div>
         <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-store-navy mb-4">Price Range</h3>
-        <div className="grid grid-cols-2 gap-3 items-center">
-          <input
-            type="number"
-            placeholder="Min"
-            value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
-            className="w-full text-xs font-bold uppercase tracking-wider px-3 py-2 border border-neutral-200 rounded-none focus:ring-1 focus:ring-store-button focus:border-store-button outline-none"
-          />
-          <input
-            type="number"
-            placeholder="Max"
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
-            className="w-full text-xs font-bold uppercase tracking-wider px-3 py-2 border border-neutral-200 rounded-none focus:ring-1 focus:ring-store-button focus:border-store-button outline-none"
-          />
+        <div className="mb-6">
+          <div className="flex justify-between items-center text-[10px] font-bold text-store-navy mb-4 tracking-widest">
+            <span>₹ {Math.max(0, Number(minPrice || 0))}</span>
+            <span>₹ {Math.max(0, Number(maxPrice || 10000))}</span>
+          </div>
+
+          <div className="relative w-full h-1 bg-neutral-200 rounded-full">
+            <div 
+              className="absolute top-0 bottom-0 bg-store-button rounded-full"
+              style={{
+                left: `${(Math.max(0, Number(minPrice || 0)) / 10000) * 100}%`,
+                right: `${100 - (Math.max(0, Number(maxPrice || 10000)) / 10000) * 100}%`
+              }}
+            />
+            <input 
+              type="range"
+              min="0" 
+              max="10000" 
+              step="100"
+              value={Math.max(0, Number(minPrice || 0))}
+              onChange={(e) => {
+                 const v = Math.max(0, Number(e.target.value));
+                 // Ensure min doesn't cross max
+                 const currentMax = Math.max(0, Number(maxPrice || 10000));
+                 setMinPrice(Math.min(v, currentMax).toString());
+              }}
+              className="absolute top-0 left-0 w-full h-1 -translate-y-1/2 appearance-none bg-transparent pointer-events-none custom-range-slider"
+            />
+            <input 
+              type="range"
+              min="0" 
+              max="10000" 
+              step="100"
+              value={Math.max(0, Number(maxPrice || 10000))}
+              onChange={(e) => {
+                 const v = Math.max(0, Number(e.target.value));
+                 // Ensure max doesn't cross min
+                 const currentMin = Math.max(0, Number(minPrice || 0));
+                 setMaxPrice(Math.max(v, currentMin).toString());
+              }}
+              className="absolute top-0 left-0 w-full h-1 -translate-y-1/2 appearance-none bg-transparent pointer-events-none custom-range-slider"
+            />
+          </div>
+
+          <style dangerouslySetInnerHTML={{__html: `
+            .custom-range-slider::-webkit-slider-thumb {
+              pointer-events: auto;
+              appearance: none;
+              width: 14px;
+              height: 14px;
+              background-color: #08043D;
+              border: 2px solid white;
+              border-radius: 50%;
+              cursor: pointer;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            }
+            .custom-range-slider::-moz-range-thumb {
+              pointer-events: auto;
+              width: 14px;
+              height: 14px;
+              background-color: #08043D;
+              border: 2px solid white;
+              border-radius: 50%;
+              cursor: pointer;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            }
+          `}} />
         </div>
         <button
           onClick={applyFilters}

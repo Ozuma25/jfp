@@ -34,7 +34,7 @@ export default function ConfettiEffect() {
       numberOfPieces={800}
       gravity={0.12}
       initialVelocityY={20}
-      colors={['#D4AF37', '#004B6E', '#008148', '#FFD700', '#F0C75E']}
+      colors={['#D4AF37', '#08043D', '#008148', '#FFD700', '#F0C75E']}
       style={{ zIndex: 99999, position: "fixed", top: 0, left: 0, pointerEvents: "none" }}
     />
   );

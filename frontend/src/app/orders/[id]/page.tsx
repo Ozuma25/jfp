@@ -400,7 +400,7 @@ export default function OrderDetailPage() {
         .order-details-modern {
            --accent-gold: #D4AF37;
            --accent-green: #008148;
-           --dark-navy: #004B6E;
+           --dark-navy: #08043D;
            --soft-bg: #F9F9F7;
            --border-color: rgba(0,0,0,0.06);
            background-color: var(--soft-bg);

@@ -5,14 +5,20 @@ import { BlogSection } from "@/components/home/BlogSection";
 import { PromoBanners } from "@/components/home/PromoBanners";
 import { TrustBar } from "@/components/home/TrustBar";
 import { VideoStrip } from "@/components/home/VideoStrip";
+import { ShopByOccasion } from "@/components/home/ShopByOccasion";
+import { OrnamentalDivider } from "@/components/ui/OrnamentalDivider";
 
 export default function HomePage() {
   return (
     <>
       <HeroCarousel />
       <CategoryGrid />
+      <OrnamentalDivider variant="paisley" />
+      <ShopByOccasion />
+      <OrnamentalDivider variant="floral" />
       <HomeProductSections />
       <PromoBanners />
+      <OrnamentalDivider variant="classic" />
       <TrustBar />
       <VideoStrip />
       <BlogSection />

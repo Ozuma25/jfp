@@ -130,14 +130,57 @@ export default function CartPage() {
         )}
 
         {!cart || cart.items.length === 0 ? (
-          <div className="py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
-             <div className="text-6xl mb-6 grayscale opacity-20">🛍️</div>
-             <p className="text-2xl font-serif text-store-navy mb-8 italic">Your atelier basket is currently waiting.</p>
+          <div className="py-16 md:py-24 text-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
+             {/* Illustrated empty gift box SVG */}
+             <div className="relative mx-auto w-48 h-48 md:w-56 md:h-56 mb-8">
+                <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                   {/* Shadow */}
+                   <ellipse cx="100" cy="180" rx="60" ry="8" fill="#08043D" opacity="0.06" />
+                   {/* Box body */}
+                   <rect x="40" y="100" width="120" height="70" rx="4" fill="#F0C75E" opacity="0.15" stroke="#D4AF37" strokeWidth="1.5" />
+                   <rect x="40" y="100" width="120" height="70" rx="4" fill="url(#boxGrad)" />
+                   {/* Box lid (open, tilted) */}
+                   <g transform="rotate(-8, 40, 100)">
+                      <rect x="35" y="85" width="130" height="20" rx="3" fill="#D4AF37" opacity="0.25" stroke="#D4AF37" strokeWidth="1.5" />
+                      <rect x="93" y="85" width="14" height="20" fill="#D4AF37" opacity="0.5" />
+                   </g>
+                   {/* Vertical ribbon */}
+                   <rect x="93" y="100" width="14" height="70" fill="#D4AF37" opacity="0.35" />
+                   {/* Bow */}
+                   <path d="M100 90 C85 75, 65 80, 75 90 C65 100, 85 105, 100 90Z" fill="#C41E3A" opacity="0.6" />
+                   <path d="M100 90 C115 75, 135 80, 125 90 C135 100, 115 105, 100 90Z" fill="#C41E3A" opacity="0.6" />
+                   <circle cx="100" cy="90" r="4" fill="#C41E3A" opacity="0.8" />
+                   {/* Ribbon tails */}
+                   <path d="M87 92 Q80 105, 72 115" stroke="#C41E3A" strokeWidth="2.5" fill="none" opacity="0.4" strokeLinecap="round" />
+                   <path d="M113 92 Q120 105, 128 115" stroke="#C41E3A" strokeWidth="2.5" fill="none" opacity="0.4" strokeLinecap="round" />
+                   {/* Sparkles around the box */}
+                   <path d="M30 70 L32 65 L34 70 L32 75Z" fill="#D4AF37" opacity="0.5" />
+                   <path d="M170 60 L172 55 L174 60 L172 65Z" fill="#D4AF37" opacity="0.4" />
+                   <path d="M155 130 L157 127 L159 130 L157 133Z" fill="#D4AF37" opacity="0.3" />
+                   <circle cx="45" cy="130" r="2" fill="#D4AF37" opacity="0.3" />
+                   <circle cx="165" cy="85" r="1.5" fill="#F0C75E" opacity="0.5" />
+                   {/* Gradient definition */}
+                   <defs>
+                      <linearGradient id="boxGrad" x1="40" y1="100" x2="160" y2="170" gradientUnits="userSpaceOnUse">
+                         <stop offset="0" stopColor="#F0C75E" stopOpacity="0.08" />
+                         <stop offset="1" stopColor="#D4AF37" stopOpacity="0.12" />
+                      </linearGradient>
+                   </defs>
+                </svg>
+             </div>
+
+             <p className="text-sm font-bold uppercase tracking-[0.3em] text-store-button mb-3">Your Gift Box</p>
+             <p className="text-2xl md:text-3xl font-serif text-store-navy mb-3 leading-tight">Waiting to be filled with joy</p>
+             <p className="text-sm text-store-navy/40 max-w-md mx-auto mb-10">
+               Explore our curated collections of premium gifts, handcrafted packaging, and festive hampers for every celebration.
+             </p>
              <Link 
                href="/products" 
-               className="inline-block bg-store-navy text-white px-10 py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-store-button hover:text-black transition-all shadow-xl"
+               className="group inline-flex items-center gap-3 bg-store-navy text-white px-10 py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-store-button hover:text-black transition-all shadow-xl relative overflow-hidden"
              >
-               Explore the Collection
+               <span className="absolute inset-0 -translate-x-full bg-white/10 group-hover:translate-x-full transition-transform duration-700 skew-x-12" />
+               <span className="relative">🎁 Start Gifting</span>
+               <span className="relative text-base group-hover:translate-x-1 transition-transform">→</span>
              </Link>
           </div>
         ) : (

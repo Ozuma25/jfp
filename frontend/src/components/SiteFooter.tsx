@@ -4,6 +4,25 @@ import { IconMapPin } from "@/components/icons";
 
 export function SiteFooter() {
    return (
+      <>
+      {/* Festive Seasonal Pattern Strip */}
+      <div className="relative w-full overflow-hidden bg-gradient-to-r from-amber-50 via-[#FFF9EE] to-amber-50 py-4" aria-hidden="true">
+         <div className="flex items-center justify-center gap-6 animate-[scroll_20s_linear_infinite] whitespace-nowrap">
+            {Array.from({ length: 16 }).map((_, i) => (
+               <span key={i} className="flex items-center gap-6 text-store-button/40">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8L10 0Z" /></svg>
+                  <span className="text-[9px] font-bold uppercase tracking-[0.4em] text-store-navy/30">Celebrate</span>
+               </span>
+            ))}
+         </div>
+         <style dangerouslySetInnerHTML={{__html: `
+            @keyframes scroll {
+               0% { transform: translateX(0); }
+               100% { transform: translateX(-50%); }
+            }
+         `}} />
+      </div>
+
       <footer className="relative bg-store-navy text-white pt-20 pb-10 overflow-hidden border-t border-white/5">
          {/* 
           CONCEPT 1: EXQUISITE ATELIER 
@@ -11,7 +30,7 @@ export function SiteFooter() {
       */}
          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center pointer-events-none select-none opacity-[0.03] whitespace-nowrap">
             <span className="text-[15rem] md:text-[25rem] font-serif font-black tracking-tighter uppercase leading-none">
-               JAI FANCY PACKS
+               JFP
             </span>
          </div>
 
@@ -133,5 +152,6 @@ export function SiteFooter() {
             </div>
          </div>
       </footer>
+      </>
    );
 }

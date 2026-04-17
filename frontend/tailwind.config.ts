@@ -19,14 +19,14 @@ const config: Config = {
           dark: "#115e59",
           light: "#14b8a6",
         },
-        /** Peacock Blue and Gold color palette */
+        /** Deep Navy and Gold color palette */
         store: {
-          navy: "#004B6E",        /* Peacock Blue Main */
-          navyLight: "#005F88",   /* Peacock Blue Secondary */
+          navy: "#08043D",        /* Deep Navy Main */
+          navyLight: "#1A1460",   /* Deep Navy Secondary */
           yellow: "#F0C75E",      /* Gold bright */
           button: "#D4AF37",      /* Luxury Gold */
           buttonHover: "#C59B27", /* Darker Gold for hover */
-          link: "#005F88",        /* Peacock Blue links */
+          link: "#1A1460",        /* Deep Navy links */
           accent: "#c41e3a",      /* Red accent for errors/alerts */
           accentHover: "#a01830",
         },

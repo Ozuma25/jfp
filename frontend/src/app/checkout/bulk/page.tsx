@@ -173,7 +173,7 @@ function BulkCheckoutContent() {
           }
         },
         prefill: { email: user?.email ?? "", name: shipping_name, contact: shipping_phone },
-        theme: { color: "#004B6E" },
+        theme: { color: "#08043D" },
         modal: {
           ondismiss: () => router.push(`/orders/${orderId}`),
         },
@@ -203,7 +203,7 @@ function BulkCheckoutContent() {
                   router.push(`/orders/${orderId}`);
                 } catch (e) { setErr(e instanceof Error ? e.message : "Verification failed."); }
               },
-              theme: { color: "#004B6E" },
+              theme: { color: "#08043D" },
               modal: { ondismiss: () => router.push(`/orders/${orderId}`) },
             });
             rzp.open();

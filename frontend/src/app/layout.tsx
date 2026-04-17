@@ -5,6 +5,7 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { ConditionalLayout } from "@/components/ConditionalLayout";
 import { TopProgressBar } from "@/components/TopProgressBar";
+import { FestiveParticles } from "@/components/ui/FestiveParticles";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -67,6 +68,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <TopProgressBar />
         </Suspense>
+        <FestiveParticles />
         <Providers>
           <ConditionalLayout>{children}</ConditionalLayout>
         </Providers>

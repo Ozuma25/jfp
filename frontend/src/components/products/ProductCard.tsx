@@ -60,6 +60,15 @@ export function ProductCard({ product }: Props) {
             </span>
           </div>
         )}
+
+        {/* Festive gift ribbon accent */}
+        {product.stock > 0 && (
+          <div className="absolute top-0 right-0 z-10 overflow-hidden w-14 h-14 pointer-events-none">
+            <div className="absolute top-[5px] right-[-18px] w-[68px] text-center text-[6px] font-extrabold uppercase tracking-[0.15em] text-white bg-gradient-to-r from-store-button to-[#C59B27] py-[2.5px] rotate-45 shadow-sm">
+              🎁 Gift
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 

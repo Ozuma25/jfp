@@ -8,28 +8,28 @@ import { IconChevronLeft, IconChevronRight } from "@/components/icons";
 const slides = [
   {
     id: "01",
-    label: "Bespoke Packaging",
-    title: "Master Craftsmen Since 2023",
-    subtitle: "Elevating your brand with custom wholesale boxes and premium materials.",
-    img: "https://images.unsplash.com/photo-1607344645866-009c320b63e0?w=1600&q=100",
-    cta: "Explore Packaging",
-    href: "/products?cat=packaging",
+    label: "✨ Festive Gifting Collection",
+    title: "Make Every Celebration Legendary",
+    subtitle: "Hand-curated gift hampers & luxury packaging for India's most cherished festivals.",
+    img: "https://images.unsplash.com/photo-1513885535751-8b9238bd345a?w=1600&q=100",
+    cta: "Explore Festive Gifts",
+    href: "/products",
   },
   {
     id: "02",
-    label: "Corporate & Weddings",
-    title: "Luxury Bulk Gifting",
-    subtitle: "Unforgettable return gifts designed for the most prestigious events.",
+    label: "💍 Weddings & Grand Events",
+    title: "Unforgettable Return Gifts",
+    subtitle: "Bespoke gift sets that leave a lasting impression on every guest.",
     img: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=1600&q=100",
-    cta: "Request Quote",
-    href: "/contact",
+    cta: "Shop Wedding Collection",
+    href: "/products?occasion=wedding",
   },
   {
     id: "03",
-    label: "The Ribbon Collection",
+    label: "🎀 The Ribbon Atelier",
     title: "The Perfect Finishing Touch",
-    subtitle: "Explore our massive inventory of silk, satin, and metallic ribbons.",
-    img: "https://images.unsplash.com/photo-1513885535751-8b9238bd345a?w=1600&q=100",
+    subtitle: "Silk, satin & metallic ribbons to wrap your celebrations in elegance.",
+    img: "https://images.unsplash.com/photo-1607344645866-009c320b63e0?w=1600&q=100",
     cta: "Shop Ribbons",
     href: "/products?cat=ribbons",
   },
@@ -74,12 +74,21 @@ export function HeroCarousel() {
                 />
              </div>
              
-             {/* Centered Vignette Matrix for perfect text readability anywhere */}
-             <div className="absolute inset-0 bg-black/40" />
-             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/20 to-black/80 mix-blend-multiply" />
+             {/* Warm golden vignette overlay — gives festive warmth */}
+             <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-amber-950/20 to-black/50" />
+             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-amber-900/10 to-black/70 mix-blend-multiply" />
           </div>
         );
       })}
+
+      {/* Decorative floating elements — small sparkles */}
+      <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden">
+        <div className="hero-sparkle" style={{ top: '15%', left: '10%', animationDelay: '0s' }} />
+        <div className="hero-sparkle" style={{ top: '25%', right: '15%', animationDelay: '1.5s' }} />
+        <div className="hero-sparkle" style={{ top: '60%', left: '20%', animationDelay: '3s' }} />
+        <div className="hero-sparkle" style={{ top: '70%', right: '25%', animationDelay: '0.8s' }} />
+        <div className="hero-sparkle" style={{ top: '40%', left: '75%', animationDelay: '2.2s' }} />
+      </div>
 
       {/* 2. Foreground Typography (Perfectly Centered) */}
       <div className="absolute inset-0 z-30 flex flex-col items-center justify-center text-center pointer-events-none px-4 md:px-12">
@@ -122,13 +131,13 @@ export function HeroCarousel() {
                <div key={`cta-${activeIdx}`} className="animate-in slide-in-from-bottom-8 fade-in duration-1000 delay-300 inline-block">
                   <Link 
                      href={slides[activeIdx].href}
-                     className="group relative inline-flex items-center justify-center bg-[#F0C75E] text-black px-12 py-5 rounded-sm font-bold uppercase tracking-[0.2em] text-xs overflow-hidden transition-colors hover:bg-white shadow-2xl"
+                     className="group/btn relative inline-flex items-center justify-center bg-[#F0C75E] text-black px-12 py-5 rounded-sm font-bold uppercase tracking-[0.2em] text-xs overflow-hidden transition-colors hover:bg-white shadow-2xl"
                   >
                      {/* Button Internal Light Sweep */}
-                     <div className="absolute inset-0 -translate-x-full bg-white/40 group-hover:animate-[shimmer_1s_forwards] skew-x-[30deg]" />
+                     <div className="absolute inset-0 -translate-x-full bg-white/40 group-hover/btn:animate-[shimmer_1s_forwards] skew-x-[30deg]" />
                      <span className="relative z-10 flex items-center gap-3">
                         {slides[activeIdx].cta}
-                        <span className="text-lg leading-none mt-[-2px] group-hover:translate-x-1.5 transition-transform duration-300">→</span>
+                        <span className="text-lg leading-none mt-[-2px] group-hover/btn:translate-x-1.5 transition-transform duration-300">→</span>
                      </span>
                   </Link>
                </div>
@@ -137,7 +146,7 @@ export function HeroCarousel() {
          </div>
       </div>
 
-      {/* 3. Floating Edge Navigation controls (Left/Right instead of Bottom bar) */}
+      {/* 3. Floating Edge Navigation controls */}
       <div className="absolute inset-y-0 w-full flex items-center justify-between px-4 md:px-8 z-40 pointer-events-none">
          <button 
             onClick={prevSlide}
@@ -155,7 +164,7 @@ export function HeroCarousel() {
          </button>
       </div>
 
-      {/* Modern Slide Indicators (Subtle dots at bottom center) */}
+      {/* Modern Slide Indicators */}
       <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 gap-3 z-40">
         {slides.map((_, idx) => (
           <button
@@ -172,6 +181,19 @@ export function HeroCarousel() {
       <style dangerouslySetInnerHTML={{__html: `
          @keyframes shimmer {
             100% { transform: translateX(200%); }
+         }
+         .hero-sparkle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #F0C75E, transparent 70%);
+            box-shadow: 0 0 8px 2px rgba(240, 199, 94, 0.4);
+            animation: sparkle-twinkle 3s ease-in-out infinite;
+         }
+         @keyframes sparkle-twinkle {
+            0%, 100% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1.2); }
          }
       `}} />
     </section>
