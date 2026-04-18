@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { IconMapPin } from "@/components/icons";
+import { FestiveBackground } from "@/components/ui/FestiveBackground";
 
 export function SiteFooter() {
    return (
@@ -24,6 +25,11 @@ export function SiteFooter() {
       </div>
 
       <footer className="relative bg-store-navy text-white pt-20 pb-10 overflow-hidden border-t border-white/5">
+         {/* Festive Corner Accents */}
+         <div className="opacity-100 pointer-events-none">
+            <FestiveBackground variant="rangoli" />
+         </div>
+
          {/* 
           CONCEPT 1: EXQUISITE ATELIER 
           Huge backdrop typography for a high-fashion, premium house feel.

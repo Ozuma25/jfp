@@ -11,7 +11,8 @@ const slides = [
     label: "✨ Festive Gifting Collection",
     title: "Make Every Celebration Legendary",
     subtitle: "Hand-curated gift hampers & luxury packaging for India's most cherished festivals.",
-    img: "https://images.unsplash.com/photo-1513885535751-8b9238bd345a?w=1600&q=100",
+    imgDesktop: "/images/banners/banner1.jpeg",
+    imgMobile: "/images/banners/banner1_mobile.jpeg",
     cta: "Explore Festive Gifts",
     href: "/products",
   },
@@ -20,23 +21,16 @@ const slides = [
     label: "💍 Weddings & Grand Events",
     title: "Unforgettable Return Gifts",
     subtitle: "Bespoke gift sets that leave a lasting impression on every guest.",
-    img: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=1600&q=100",
+    imgDesktop: "/images/banners/banner2.jpeg",
+    imgMobile: "/images/banners/banner2_mobile.jpeg",
     cta: "Shop Wedding Collection",
     href: "/products?occasion=wedding",
-  },
-  {
-    id: "03",
-    label: "🎀 The Ribbon Atelier",
-    title: "The Perfect Finishing Touch",
-    subtitle: "Silk, satin & metallic ribbons to wrap your celebrations in elegance.",
-    img: "https://images.unsplash.com/photo-1607344645866-009c320b63e0?w=1600&q=100",
-    cta: "Shop Ribbons",
-    href: "/products?cat=ribbons",
   },
 ];
 
 export function HeroCarousel() {
-  const [activeIdx, setActiveIdx] = useState(0);
+  const [activeIdxState, setActiveIdx] = useState(0);
+  const activeIdx = activeIdxState >= slides.length ? 0 : activeIdxState;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -61,21 +55,32 @@ export function HeroCarousel() {
               isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
             }`}
           >
-             {/* The Image */}
+             {/* The Images (Responsive Desktop/Mobile) */}
              <div className="absolute inset-0 bg-black">
+                {/* Desktop Image */}
                 <Image
-                   src={slide.img}
+                   src={slide.imgDesktop}
                    alt={slide.title}
                    fill
-                   priority={isActive}
-                   className={`object-cover transition-transform duration-[10000ms] ease-linear ${
+                   priority={false}
+                   className={`hidden md:block object-cover transition-transform duration-[10000ms] ease-linear ${
+                     isActive ? "scale-105" : "scale-100"
+                   }`}
+                />
+                {/* Mobile Image */}
+                <Image
+                   src={slide.imgMobile}
+                   alt={slide.title}
+                   fill
+                   priority={false}
+                   className={`md:hidden block object-cover transition-transform duration-[10000ms] ease-linear ${
                      isActive ? "scale-105" : "scale-100"
                    }`}
                 />
              </div>
              
              {/* Warm golden vignette overlay — gives festive warmth */}
-             <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-amber-950/20 to-black/50" />
+             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-amber-950/30 to-black/60 md:from-black/30 md:via-amber-950/20 md:to-black/50" />
              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-amber-900/10 to-black/70 mix-blend-multiply" />
           </div>
         );
@@ -100,7 +105,7 @@ export function HeroCarousel() {
                 key={`label-${activeIdx}`} 
                 className="animate-in slide-in-from-bottom-4 fade-in duration-700"
               >
-                <span className="px-5 py-1.5 border border-white/20 rounded-full backdrop-blur-sm bg-white/5 text-store-yellow font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs">
+                <span className="px-4 py-1 md:px-5 md:py-1.5 border border-white/20 rounded-full backdrop-blur-sm bg-white/5 text-store-yellow font-bold uppercase tracking-[0.3em] text-[9px] md:text-xs">
                   {slides[activeIdx].label}
                 </span>
               </div>
@@ -110,7 +115,7 @@ export function HeroCarousel() {
             <div className="overflow-hidden mb-6">
                <h1 
                  key={`title-${activeIdx}`} 
-                 className="text-5xl md:text-6xl lg:text-[80px] font-serif text-white leading-[1.05] tracking-tight animate-in slide-in-from-bottom-8 fade-in duration-1000 drop-shadow-xl"
+                 className="text-4xl sm:text-5xl md:text-6xl lg:text-[80px] font-serif text-white leading-[1.05] tracking-tight animate-in slide-in-from-bottom-8 fade-in duration-1000 drop-shadow-xl"
                >
                  {slides[activeIdx].title}
                </h1>
@@ -120,7 +125,7 @@ export function HeroCarousel() {
             <div className="overflow-hidden mb-10">
                <p 
                  key={`desc-${activeIdx}`} 
-                 className="text-white/90 text-sm md:text-lg lg:text-xl font-medium leading-relaxed max-w-2xl mx-auto animate-in slide-in-from-bottom-8 fade-in duration-1000 delay-150 drop-shadow-md"
+                 className="text-white/90 text-[13px] sm:text-sm md:text-lg lg:text-xl font-medium leading-relaxed max-w-2xl mx-auto animate-in slide-in-from-bottom-8 fade-in duration-1000 delay-150 drop-shadow-md"
                >
                  {slides[activeIdx].subtitle}
                </p>
@@ -131,7 +136,7 @@ export function HeroCarousel() {
                <div key={`cta-${activeIdx}`} className="animate-in slide-in-from-bottom-8 fade-in duration-1000 delay-300 inline-block">
                   <Link 
                      href={slides[activeIdx].href}
-                     className="group/btn relative inline-flex items-center justify-center bg-[#F0C75E] text-black px-12 py-5 rounded-sm font-bold uppercase tracking-[0.2em] text-xs overflow-hidden transition-colors hover:bg-white shadow-2xl"
+                     className="group/btn relative inline-flex items-center justify-center bg-[#F0C75E] text-black px-8 py-3.5 md:px-12 md:py-5 rounded-sm font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs overflow-hidden transition-colors hover:bg-white shadow-2xl"
                   >
                      {/* Button Internal Light Sweep */}
                      <div className="absolute inset-0 -translate-x-full bg-white/40 group-hover/btn:animate-[shimmer_1s_forwards] skew-x-[30deg]" />

@@ -6,19 +6,40 @@ import { PromoBanners } from "@/components/home/PromoBanners";
 import { TrustBar } from "@/components/home/TrustBar";
 import { VideoStrip } from "@/components/home/VideoStrip";
 import { ShopByOccasion } from "@/components/home/ShopByOccasion";
-import { OrnamentalDivider } from "@/components/ui/OrnamentalDivider";
+import { FestiveDivider } from "@/components/ui/FestiveDivider";
+import { FestiveBackground } from "@/components/ui/FestiveBackground";
 
 export default function HomePage() {
   return (
     <>
       <HeroCarousel />
-      <CategoryGrid />
-      <OrnamentalDivider variant="paisley" />
-      <ShopByOccasion />
-      <OrnamentalDivider variant="floral" />
-      <HomeProductSections />
+
+      {/* Category Grid with gift box silhouette watermarks */}
+      <div className="relative">
+        <FestiveBackground variant="gifts" />
+        <CategoryGrid />
+      </div>
+
+      <FestiveDivider variant="toran" />
+
+      {/* Shop by Occasion with marigold watermarks */}
+      <div className="relative">
+        <FestiveBackground variant="marigold" />
+        <ShopByOccasion />
+      </div>
+
+      <FestiveDivider variant="diya" />
+
+      {/* Products section with rangoli corner accents */}
+      <div className="relative">
+        <FestiveBackground variant="rangoli" />
+        <HomeProductSections />
+      </div>
+
       <PromoBanners />
-      <OrnamentalDivider variant="classic" />
+
+      <FestiveDivider variant="rangoli" />
+
       <TrustBar />
       <VideoStrip />
       <BlogSection />
