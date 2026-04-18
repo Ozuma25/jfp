@@ -125,44 +125,32 @@ export function SiteHeader() {
 
           {/* Column 2: Logo (Center) */}
           <div className="flex shrink-0 justify-center items-center" style={{ overflow: 'visible' }}>
-            <Link href="/" className="group outline-none block text-center relative" style={{ overflow: 'visible' }}>
-              {/* Gift ribbon SVG wrapping the brand name */}
+            <Link href="/" className="group outline-none inline-block text-center relative" style={{ overflow: 'visible' }}>
+              {/* Gift ribbon SVG */}
               <span className="absolute -top-5 md:-top-4 left-1/2 -translate-x-1/2 pointer-events-none z-10 scale-75 md:scale-100">
                 <svg width="48" height="24" viewBox="0 0 48 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-sm">
-                  {/* Left loop */}
                   <path d="M24 14 C18 4, 6 6, 12 14 C6 22, 18 24, 24 14Z" fill="#C41E3A" opacity="0.85" />
-                  {/* Right loop */}
                   <path d="M24 14 C30 4, 42 6, 36 14 C42 22, 30 24, 24 14Z" fill="#C41E3A" opacity="0.85" />
-                  {/* Center knot */}
                   <circle cx="24" cy="14" r="3" fill="#9B1B30" />
-                  {/* Left tail */}
                   <path d="M18 16 Q12 20, 6 22" stroke="#C41E3A" strokeWidth="2" fill="none" opacity="0.6" strokeLinecap="round" />
-                  {/* Right tail */}
                   <path d="M30 16 Q36 20, 42 22" stroke="#C41E3A" strokeWidth="2" fill="none" opacity="0.6" strokeLinecap="round" />
                 </svg>
               </span>
-              <span className="relative font-serif text-xl sm:text-2xl md:text-3xl font-bold tracking-tight leading-none inline-flex flex-col items-center" style={{ overflow: 'visible' }}>
-                <span className="whitespace-nowrap">
-                  <span className="text-store-navy group-hover:text-store-button transition-colors duration-300">
-                    Jai{" "}
-                  </span>
-                  <span className="text-store-button italic group-hover:text-store-navy transition-colors duration-300">
-                    Fancy{" "}
-                  </span>
-                  <span className="text-store-navy group-hover:text-store-button transition-colors duration-300">
-                    Packs
-                  </span>
-                </span>
-                {/* Flute underline — tassels hang below, z-index above other content */}
-                <span className="block w-full relative pointer-events-none z-30" style={{ height: '0.2em', overflow: 'visible', marginTop: '-2px' }}>
-                  <img 
-                    src="/images/brand/flute.png" 
-                    alt="" 
-                    className="absolute top-0 left-0 w-full h-auto opacity-90 group-hover:opacity-100 transition-opacity duration-300" 
-                    style={{ transformOrigin: 'top center', transform: 'scaleY(0.65)' }}
-                  />
-                </span>
+
+              {/* Brand name */}
+              <span className="relative font-serif text-xl sm:text-2xl md:text-3xl font-bold tracking-tight leading-none whitespace-nowrap block">
+                <span className="text-store-navy group-hover:text-store-button transition-colors duration-300">Jai </span>
+                <span className="text-store-button italic group-hover:text-store-navy transition-colors duration-300">Fancy </span>
+                <span className="text-store-navy group-hover:text-store-button transition-colors duration-300">Packs</span>
               </span>
+
+              {/* Flute — absolutely positioned just below the text, tassels overflow naturally */}
+              <img
+                src="/images/brand/flute.png"
+                alt=""
+                className="absolute left-0 w-full h-auto pointer-events-none z-30 opacity-95 group-hover:opacity-100 transition-opacity duration-300"
+                style={{ top: 'calc(100% + 2px)' }}
+              />
             </Link>
           </div>
 

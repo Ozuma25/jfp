@@ -26,6 +26,16 @@ const slides = [
     cta: "Shop Wedding Collection",
     href: "/products?occasion=wedding",
   },
+  {
+    id: "03",
+    label: "🎀 Premium Collections",
+    title: "The Perfect Finishing Touch",
+    subtitle: "Exquisite packaging crafted to make every gift unforgettable.",
+    imgDesktop: "/images/banners/banner3.jpeg",
+    imgMobile: "/images/banners/banner3_mobile.jpeg",
+    cta: "Explore Collections",
+    href: "/products",
+  },
 ];
 
 export function HeroCarousel() {
@@ -79,9 +89,9 @@ export function HeroCarousel() {
                 />
              </div>
              
-             {/* Warm golden vignette overlay — gives festive warmth */}
-             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-amber-950/30 to-black/60 md:from-black/30 md:via-amber-950/20 md:to-black/50" />
-             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-amber-900/10 to-black/70 mix-blend-multiply" />
+             {/* Subtle vignette overlay */}
+             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/30 md:from-black/10 md:via-transparent md:to-black/25" />
+             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-transparent to-black/30 mix-blend-multiply" />
           </div>
         );
       })}
@@ -96,6 +106,13 @@ export function HeroCarousel() {
       </div>
 
       {/* 2. Foreground Typography (Perfectly Centered) */}
+      {/* Localized dark blob only behind the text — keeps image vivid at edges */}
+      <div
+        className="absolute inset-0 z-25 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.1) 60%, transparent 100%)'
+        }}
+      />
       <div className="absolute inset-0 z-30 flex flex-col items-center justify-center text-center pointer-events-none px-4 md:px-12">
          <div className="max-w-4xl pointer-events-auto flex flex-col items-center">
             
@@ -115,7 +132,8 @@ export function HeroCarousel() {
             <div className="overflow-hidden mb-6">
                <h1 
                  key={`title-${activeIdx}`} 
-                 className="text-4xl sm:text-5xl md:text-6xl lg:text-[80px] font-serif text-white leading-[1.05] tracking-tight animate-in slide-in-from-bottom-8 fade-in duration-1000 drop-shadow-xl"
+                 className="text-4xl sm:text-5xl md:text-6xl lg:text-[80px] font-serif text-white leading-[1.05] tracking-tight animate-in slide-in-from-bottom-8 fade-in duration-1000"
+                 style={{ textShadow: '0 2px 12px rgba(0,0,0,0.7), 0 1px 3px rgba(0,0,0,0.9)' }}
                >
                  {slides[activeIdx].title}
                </h1>
@@ -125,7 +143,8 @@ export function HeroCarousel() {
             <div className="overflow-hidden mb-10">
                <p 
                  key={`desc-${activeIdx}`} 
-                 className="text-white/90 text-[13px] sm:text-sm md:text-lg lg:text-xl font-medium leading-relaxed max-w-2xl mx-auto animate-in slide-in-from-bottom-8 fade-in duration-1000 delay-150 drop-shadow-md"
+                 className="text-white text-[13px] sm:text-sm md:text-lg lg:text-xl font-semibold leading-relaxed max-w-2xl mx-auto animate-in slide-in-from-bottom-8 fade-in duration-1000 delay-150"
+                 style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,1)' }}
                >
                  {slides[activeIdx].subtitle}
                </p>
