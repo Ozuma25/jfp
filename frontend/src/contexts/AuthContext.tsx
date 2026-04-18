@@ -28,6 +28,12 @@ type AuthContextValue = {
     first_name?: string;
     last_name?: string;
     phone: string;
+    is_business?: boolean;
+    company_name?: string;
+    gst_number?: string;
+    company_phone?: string;
+    company_email?: string;
+    company_address?: string;
   }) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -97,6 +103,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       first_name?: string;
       last_name?: string;
       phone: string;
+      is_business?: boolean;
+      company_name?: string;
+      gst_number?: string;
+      company_phone?: string;
+      company_email?: string;
+      company_address?: string;
     }) => {
       await registerAccount(p);
       await loginWithEmail(p.email, p.password);

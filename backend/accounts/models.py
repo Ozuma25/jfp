@@ -13,6 +13,18 @@ class UserProfile(models.Model):
     sms_opt_in = models.BooleanField(default=False)
     whatsapp_opt_in = models.BooleanField(default=False)
 
+    # Business Fields
+    is_business = models.BooleanField(default=False)
+    company_name = models.CharField(max_length=200, blank=True)
+    gst_number = models.CharField(max_length=50, blank=True)
+    company_phone = models.CharField(max_length=20, blank=True)
+    company_email = models.EmailField(blank=True)
+    company_address = models.TextField(blank=True)
+    company_city = models.CharField(max_length=100, blank=True)
+    company_state = models.CharField(max_length=100, blank=True)
+    company_country = models.CharField(max_length=100, blank=True, default="India")
+    company_pincode = models.CharField(max_length=20, blank=True)
+
     def __str__(self):
         return f"Profile({self.user_id})"
 

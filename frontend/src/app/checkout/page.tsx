@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { checkoutRequest, verifyRazorpayPayment, type CheckoutResponse } from "@/lib/ordersApi";
 import { fetchCart, updateCartItem, removeCartItem, type CartData } from "@/lib/cartApi";
-import { fetchAddresses, type SavedAddress } from "@/lib/auth";
+import { fetchAddresses, createAddress, type SavedAddress, updateMe } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
 
 declare global {
@@ -17,7 +17,7 @@ declare global {
 }
 
 export default function CheckoutPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, refreshUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -28,6 +28,52 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<1 | 2>(1); // 1 = Address, 2 = Payment
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [useNewAddress, setUseNewAddress] = useState(false);
+  const [isBusinessOrder, setIsBusinessOrder] = useState(false);
+  
+  const [promptBusinessSave, setPromptBusinessSave] = useState(false);
+  const [bCompanyName, setBCompanyName] = useState("");
+  const [bGstNumber, setBGstNumber] = useState("");
+  const [bCompanyPhone, setBCompanyPhone] = useState("");
+  const [bCompanyEmail, setBCompanyEmail] = useState("");
+  const [bCompanyAddress, setBCompanyAddress] = useState("");
+  const [bCompanyCity, setBCompanyCity] = useState("");
+  const [bCompanyState, setBCompanyState] = useState("");
+  const [bCompanyCountry, setBCompanyCountry] = useState("India");
+  const [bCompanyPincode, setBCompanyPincode] = useState("");
+  const [bPincodeLoading, setBPincodeLoading] = useState(false);
+  const [bApiFailed, setBApiFailed] = useState(false);
+
+  const handleBCompanyPincodeChange = async (val: string) => {
+    const cleaned = val.replace(/\D/g, '');
+    setBCompanyPincode(cleaned);
+    if (cleaned.length === 6) {
+      setBPincodeLoading(true);
+      setBApiFailed(false);
+      try {
+        const res = await fetch(`https://api.postalpincode.in/pincode/${cleaned}`);
+        const data = await res.json();
+        if (data && data[0] && data[0].Status === "Success" && data[0].PostOffice && data[0].PostOffice.length > 0) {
+          const po = data[0].PostOffice[0];
+          setBCompanyState(po.State);
+          setBCompanyCity(po.District);
+          setBCompanyCountry("India");
+        } else {
+          setBApiFailed(true);
+        }
+      } catch (e) {
+        setBApiFailed(true);
+      } finally {
+        setBPincodeLoading(false);
+      }
+    } else {
+      if (cleaned.length < 6) {
+        setBCompanyState("");
+        setBCompanyCity("");
+      }
+    }
+  };
+
+  const [savingBusiness, setSavingBusiness] = useState(false);
 
   // ── Auth / verification redirect ──────────────────────────────────────────
   useEffect(() => {
@@ -160,6 +206,45 @@ export default function CheckoutPage() {
     });
     rzp.open();
   }
+
+  async function handleBusinessDetailsSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr("");
+    
+    if (!bCompanyName.trim() || !bGstNumber.trim() || !bCompanyPhone.trim() || !bCompanyEmail.trim() || !bCompanyAddress.trim()) {
+       setErr("Please fill all business details.");
+       return;
+    }
+    
+    const cleanPhone = bCompanyPhone.replace(/\D/g, "");
+    if (cleanPhone.length !== 10) {
+       setErr("Company phone must be exactly 10 digits.");
+       return;
+    }
+
+    setSavingBusiness(true);
+    try {
+       await updateMe({
+         is_business: true,
+         company_name: bCompanyName,
+         gst_number: bGstNumber,
+         company_phone: cleanPhone,
+         company_email: bCompanyEmail,
+         company_address: bCompanyAddress,
+         company_city: bCompanyCity,
+         company_state: bCompanyState,
+         company_country: bCompanyCountry,
+         company_pincode: bCompanyPincode,
+       });
+       await refreshUser();
+       setPromptBusinessSave(false);
+    } catch(err) {
+       setErr(err instanceof Error ? err.message : "Failed to save business details.");
+    } finally {
+       setSavingBusiness(false);
+    }
+  }
+
   function handleAddressSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr("");
@@ -188,6 +273,18 @@ export default function CheckoutPage() {
     setPostal(cleanPincode);
     setCity(shipping_city.trim());
     setState(shipping_state.trim());
+
+    createAddress({
+       name: "Saved Checkout Address",
+       recipient_name: shipping_name.trim(),
+       phone: cleanPhone,
+       address_line1: shipping_address_line1.trim(),
+       address_line2: shipping_address_line2.trim(),
+       postal_code: cleanPincode,
+       city: shipping_city.trim(),
+       state: shipping_state.trim(),
+       is_default: savedAddresses.length === 0
+    }).catch(e => console.error("Auto-save address failed:", e));
 
     setStep(2);
   }
@@ -237,7 +334,7 @@ export default function CheckoutPage() {
 
     setBusy(true);
     try {
-      const data = await checkoutRequest({
+      let finalShipping = {
         shipping_name,
         shipping_phone,
         shipping_address_line1,
@@ -245,7 +342,21 @@ export default function CheckoutPage() {
         shipping_city,
         shipping_state,
         shipping_postal_code,
-      });
+      };
+
+      if (isBusinessOrder && user?.is_business && user?.company_name) {
+          finalShipping = {
+             shipping_name: user.company_name,
+             shipping_phone: user.company_phone || user.phone,
+             shipping_address_line1: user.company_address || "Company Address",
+             shipping_address_line2: `GST: ${user.gst_number || "N/A"}`,
+             shipping_city: user.company_city || "N/A",
+             shipping_state: user.company_state || "N/A",
+             shipping_postal_code: user.company_pincode || "000000",
+          };
+      }
+
+      const data = await checkoutRequest(finalShipping);
 
       if (isBespoke || ("mock_payment" in data && data.mock_payment)) {
         window.dispatchEvent(new Event("jfp-cart-updated"));
@@ -303,7 +414,98 @@ export default function CheckoutPage() {
                
                {step === 1 && (
                  <div className="p-6 border-t border-gray-200">
-                    {savedAddresses.length > 0 && !useNewAddress ? (
+                    <div className="mb-6 pb-4 border-b border-gray-200 flex items-center">
+                       <input 
+                         type="checkbox" 
+                         id="businessToggle"
+                         className="h-4 w-4 rounded border-gray-300 text-store-navy focus:ring-store-navy cursor-pointer"
+                         checked={isBusinessOrder}
+                         onChange={(e) => {
+                            setIsBusinessOrder(e.target.checked);
+                            if (e.target.checked && (!user?.is_business || !user?.gst_number)) {
+                               setPromptBusinessSave(true);
+                               setBCompanyName(user?.company_name || "");
+                               setBGstNumber(user?.gst_number || "");
+                               setBCompanyPhone(user?.company_phone || "");
+                               setBCompanyEmail(user?.company_email || "");
+                               setBCompanyAddress(user?.company_address || "");
+                               setBCompanyCity(user?.company_city || "");
+                               setBCompanyState(user?.company_state || "");
+                               setBCompanyCountry(user?.company_country || "India");
+                               setBCompanyPincode(user?.company_pincode || "");
+                            } else {
+                               setPromptBusinessSave(false);
+                            }
+                         }}
+                       />
+                       <label htmlFor="businessToggle" className="ml-2 font-bold text-gray-900 cursor-pointer">
+                          Order for your business?
+                       </label>
+                    </div>
+
+                    {isBusinessOrder && promptBusinessSave && (
+                        <form onSubmit={handleBusinessDetailsSubmit} className="mb-6 bg-blue-50/40 border border-store-navy rounded-lg p-5">
+                           <h3 className="font-bold text-store-navy mb-4">Complete Business Profile for B2B Billing</h3>
+                           {err && <div className="p-3 mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded">{err}</div>}
+                           <div className="grid gap-4 sm:grid-cols-2">
+                              <div>
+                                <label className="text-[13px] font-bold text-gray-900">Company Name</label>
+                                <input required value={bCompanyName} onChange={(e)=>setBCompanyName(e.target.value)} className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-store-navy focus:outline-none"/>
+                              </div>
+                              <div>
+                                <label className="text-[13px] font-bold text-gray-900">GST Number</label>
+                                <input required value={bGstNumber} onChange={(e)=>setBGstNumber(e.target.value)} className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm uppercase focus:border-store-navy focus:outline-none"/>
+                              </div>
+                              <div>
+                                <label className="text-[13px] font-bold text-gray-900">Company Phone</label>
+                                <input required type="tel" maxLength={10} value={bCompanyPhone} onChange={(e)=>setBCompanyPhone(e.target.value.replace(/\D/g,''))} className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-store-navy focus:outline-none"/>
+                              </div>
+                              <div>
+                                <label className="text-[13px] font-bold text-gray-900">Company Email</label>
+                                <input required type="email" value={bCompanyEmail} onChange={(e)=>setBCompanyEmail(e.target.value)} className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-store-navy focus:outline-none"/>
+                              </div>
+                              <div className="sm:col-span-2">
+                                <label className="text-[13px] font-bold text-gray-900">Company Address</label>
+                                <textarea required value={bCompanyAddress} onChange={(e)=>setBCompanyAddress(e.target.value)} rows={2} className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-store-navy focus:outline-none"/>
+                              </div>
+                              <div>
+                                <label className="text-[13px] font-bold text-gray-900">Company Pincode</label>
+                                <input required type="text" maxLength={6} value={bCompanyPincode} onChange={(e)=>handleBCompanyPincodeChange(e.target.value)} className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-store-navy focus:outline-none"/>
+                                {bPincodeLoading && <p className="text-[10px] text-blue-600">Verifying...</p>}
+                              </div>
+                              <div>
+                                <label className="text-[13px] font-bold text-gray-900">Company State</label>
+                                <input required value={bCompanyState} readOnly={!bApiFailed && bCompanyState !== ""} onChange={(e)=>setBCompanyState(e.target.value)} className={`mt-1 w-full rounded border px-3 py-2 text-sm focus:outline-none ${!bApiFailed && bCompanyState !== "" ? "bg-gray-100 border-gray-200" : "border-gray-300"}`}/>
+                              </div>
+                              <div>
+                                <label className="text-[13px] font-bold text-gray-900">Company District / City</label>
+                                <input required value={bCompanyCity} readOnly={!bApiFailed && bCompanyCity !== ""} onChange={(e)=>setBCompanyCity(e.target.value)} className={`mt-1 w-full rounded border px-3 py-2 text-sm focus:outline-none ${!bApiFailed && bCompanyCity !== "" ? "bg-gray-100 border-gray-200" : "border-gray-300"}`}/>
+                              </div>
+                              <div>
+                                <label className="text-[13px] font-bold text-gray-900">Company Country</label>
+                                <input required value={bCompanyCountry} onChange={(e)=>setBCompanyCountry(e.target.value)} className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-store-navy focus:outline-none"/>
+                              </div>
+                           </div>
+                           <Button isLoading={savingBusiness} type="submit" variant="primary" className="mt-4 px-6 rounded-md">Save &amp; Continue</Button>
+                        </form>
+                    )}
+
+                    {isBusinessOrder && !promptBusinessSave && user?.company_name && (
+                        <div className="mb-6 bg-blue-50/40 border border-store-navy rounded-lg p-5">
+                           <div className="flex justify-between items-start mb-2">
+                              <h3 className="font-bold text-store-navy flex items-center gap-2"><span className="text-xl">🏢</span> Using Company Details</h3>
+                              <Button onClick={()=> {setPromptBusinessSave(true); setBCompanyName(user.company_name||""); setBGstNumber(user.gst_number||""); setBCompanyPhone(user.company_phone||""); setBCompanyEmail(user.company_email||""); setBCompanyAddress(user.company_address||""); setBCompanyCity(user.company_city||""); setBCompanyState(user.company_state||""); setBCompanyCountry(user.company_country||"India"); setBCompanyPincode(user.company_pincode||"");}} variant="outline" className="text-xs h-7 px-2">Edit</Button>
+                           </div>
+                           <p className="text-sm text-gray-900 mt-2 font-bold">{user.company_name} <span className="font-normal text-gray-600">(GST: {user.gst_number?.toUpperCase()})</span></p>
+                           <p className="text-sm text-gray-700 mt-1">{user.company_address}</p>
+                           <p className="text-sm text-gray-700 mt-1">{user.company_city}, {user.company_state} - {user.company_pincode}</p>
+                           <p className="text-sm text-gray-700 mt-1">Phone: {user.company_phone}</p>
+                           <p className="text-sm font-bold text-gray-900 mt-4 pt-4 border-t border-gray-200">This address will be used for shipping and billing.</p>
+                           <Button onClick={() => setStep(2)} variant="secondary" className="mt-4 px-8">Confirm &amp; Proceed</Button>
+                        </div>
+                    )}
+
+                    {!isBusinessOrder && savedAddresses.length > 0 && !useNewAddress ? (
                       <div>
                         <div className="space-y-3 mb-6">
                            {savedAddresses.map(addr => (
@@ -395,10 +597,21 @@ export default function CheckoutPage() {
 
                {step === 2 && (
                  <div className="px-5 py-3 text-sm text-gray-700 bg-white">
-                    <p className="font-bold">{shipping_name}</p>
-                    <p>{shipping_address_line1} {shipping_address_line2}</p>
-                    <p>{shipping_city}, {shipping_state} {shipping_postal_code}</p>
-                    <p className="mt-1">Phone: {shipping_phone}</p>
+                    {isBusinessOrder && user?.is_business ? (
+                        <>
+                          <p className="font-bold">{user.company_name} (GST: {user.gst_number?.toUpperCase()})</p>
+                          <p className="whitespace-pre-wrap">{user.company_address}</p>
+                          <p>{user.company_city}, {user.company_state} - {user.company_pincode}</p>
+                          <p className="mt-1">Phone: {user.company_phone}</p>
+                        </>
+                    ) : (
+                        <>
+                          <p className="font-bold">{shipping_name}</p>
+                          <p>{shipping_address_line1} {shipping_address_line2}</p>
+                          <p>{shipping_city}, {shipping_state} {shipping_postal_code}</p>
+                          <p className="mt-1">Phone: {shipping_phone}</p>
+                        </>
+                    )}
                  </div>
                )}
             </div>

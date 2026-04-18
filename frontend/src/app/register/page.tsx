@@ -16,6 +16,50 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  
+  const [isBusiness, setIsBusiness] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [gstNumber, setGstNumber] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [companyEmail, setCompanyEmail] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [companyCity, setCompanyCity] = useState("");
+  const [companyState, setCompanyState] = useState("");
+  const [companyCountry, setCompanyCountry] = useState("India");
+  const [companyPincode, setCompanyPincode] = useState("");
+  const [pincodeLoading, setPincodeLoading] = useState(false);
+  const [apiFailed, setApiFailed] = useState(false);
+
+  const handleCompanyPincodeChange = async (val: string) => {
+    const cleaned = val.replace(/\D/g, '');
+    setCompanyPincode(cleaned);
+    if (cleaned.length === 6) {
+      setPincodeLoading(true);
+      setApiFailed(false);
+      try {
+        const res = await fetch(`https://api.postalpincode.in/pincode/${cleaned}`);
+        const data = await res.json();
+        if (data && data[0] && data[0].Status === "Success" && data[0].PostOffice && data[0].PostOffice.length > 0) {
+          const po = data[0].PostOffice[0];
+          setCompanyState(po.State);
+          setCompanyCity(po.District);
+          setCompanyCountry("India"); // Defaulting to India as per API coverage often seen
+        } else {
+          setApiFailed(true);
+        }
+      } catch (e) {
+        setApiFailed(true);
+      } finally {
+        setPincodeLoading(false);
+      }
+    } else {
+      if (cleaned.length < 6) {
+        setCompanyState("");
+        setCompanyCity("");
+      }
+    }
+  };
+
   const [err, setErr] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -32,6 +76,16 @@ export default function RegisterPage() {
         first_name: firstName,
         last_name: lastName,
         phone,
+        is_business: isBusiness,
+        company_name: isBusiness ? companyName : undefined,
+        gst_number: isBusiness ? gstNumber : undefined,
+        company_phone: isBusiness ? companyPhone : undefined,
+        company_email: isBusiness ? companyEmail : undefined,
+        company_address: isBusiness ? companyAddress : undefined,
+        company_city: isBusiness ? companyCity : undefined,
+        company_state: isBusiness ? companyState : undefined,
+        company_country: isBusiness ? companyCountry : undefined,
+        company_pincode: isBusiness ? companyPincode : undefined,
       });
       const nextUrl = new URLSearchParams(window.location.search).get("next");
       if (nextUrl && nextUrl.startsWith("/")) {
@@ -158,6 +212,110 @@ export default function RegisterPage() {
              )}
           </button>
         </div>
+
+        <div className="flex items-center space-x-2 pt-2">
+          <input
+            type="checkbox"
+            id="isBusiness"
+            checked={isBusiness}
+            onChange={(e) => setIsBusiness(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-store-navy focus:ring-store-navy cursor-pointer"
+          />
+          <label htmlFor="isBusiness" className="text-sm font-medium text-neutral-800 cursor-pointer">
+            Are you a business?
+          </label>
+        </div>
+
+        {isBusiness && (
+          <div className="space-y-4 border-l-2 border-store-navy pl-4 py-2 mt-2">
+            <div>
+              <label className="text-sm font-medium text-neutral-800">Company Name *</label>
+              <input
+                required={isBusiness}
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-neutral-800">GST Number *</label>
+              <input
+                required={isBusiness}
+                value={gstNumber}
+                onChange={(e) => setGstNumber(e.target.value)}
+                className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm uppercase"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-neutral-800">Company Phone (Optional)</label>
+              <input
+                type="tel"
+                value={companyPhone}
+                onChange={(e) => setCompanyPhone(e.target.value)}
+                className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-neutral-800">Company Email (Optional)</label>
+              <input
+                type="email"
+                value={companyEmail}
+                onChange={(e) => setCompanyEmail(e.target.value)}
+                className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-neutral-800">Company Address (Optional)</label>
+              <textarea
+                value={companyAddress}
+                onChange={(e) => setCompanyAddress(e.target.value)}
+                className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm resize-y"
+                rows={2}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-neutral-800">Company Pincode</label>
+              <input
+                type="text"
+                maxLength={6}
+                value={companyPincode}
+                onChange={(e) => handleCompanyPincodeChange(e.target.value)}
+                placeholder="6 digit PIN"
+                className={`mt-1 block w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none transition-colors ${pincodeLoading ? 'bg-neutral-100 border-neutral-300' : 'border-neutral-300 focus:border-store-navy focus:ring-1 focus:ring-store-navy'}`}
+              />
+              {pincodeLoading && <p className="text-xs text-blue-600 mt-1">Verifying...</p>}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium text-neutral-800">Company State</label>
+                <input
+                  value={companyState}
+                  readOnly={!apiFailed && companyState !== ""}
+                  onChange={(e) => setCompanyState(e.target.value)}
+                  className={`mt-1 block w-full rounded-md border px-3 py-2 text-sm shadow-sm ${!apiFailed && companyState !== "" ? "bg-neutral-100 border-neutral-200 text-neutral-600 cursor-not-allowed" : "border-neutral-300 focus:border-store-navy focus:ring-1 focus:ring-store-navy focus:outline-none"}`}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-neutral-800">Company District / City</label>
+                <input
+                  value={companyCity}
+                  readOnly={!apiFailed && companyCity !== ""}
+                  onChange={(e) => setCompanyCity(e.target.value)}
+                  className={`mt-1 block w-full rounded-md border px-3 py-2 text-sm shadow-sm ${!apiFailed && companyCity !== "" ? "bg-neutral-100 border-neutral-200 text-neutral-600 cursor-not-allowed" : "border-neutral-300 focus:border-store-navy focus:ring-1 focus:ring-store-navy focus:outline-none"}`}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-neutral-800">Company Country</label>
+              <input
+                value={companyCountry}
+                onChange={(e) => setCompanyCountry(e.target.value)}
+                className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+        )}
+
         {err && <p className="text-sm text-red-600 break-words animate-pulse">{err}</p>}
         {/* Using the new Button component with loading state */}
         <Button

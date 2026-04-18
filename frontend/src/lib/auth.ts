@@ -118,6 +118,16 @@ export type UserMe = {
   last_name: string;
   phone: string;
   is_email_verified: boolean;
+  is_business?: boolean;
+  company_name?: string;
+  gst_number?: string;
+  company_phone?: string;
+  company_email?: string;
+  company_address?: string;
+  company_city?: string;
+  company_state?: string;
+  company_country?: string;
+  company_pincode?: string;
 };
 
 function formatAuthError(text: string): string {
@@ -157,6 +167,16 @@ export async function registerAccount(body: {
   first_name?: string;
   last_name?: string;
   phone: string;
+  is_business?: boolean;
+  company_name?: string;
+  gst_number?: string;
+  company_phone?: string;
+  company_email?: string;
+  company_address?: string;
+  company_city?: string;
+  company_state?: string;
+  company_country?: string;
+  company_pincode?: string;
 }) {
   const url = await resolveApiFetchUrl("/api/auth/register/");
   const res = await fetch(url, {

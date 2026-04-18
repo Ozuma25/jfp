@@ -8,12 +8,12 @@ import {
   deleteAddress,
   type SavedAddress,
 } from "@/lib/auth";
-import { IconMapPin, IconPlus, IconTrash, IconEdit } from "@/components/icons";
+import { IconMapPin, IconPlus, IconTrash, IconEdit, IconBriefcase } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
-
-
-
+import { useAuth } from "@/contexts/AuthContext";
+import Link from "next/link";
 export default function AddressesPage() {
+  const { user } = useAuth();
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState<number | "new" | null>(null);
@@ -63,7 +63,23 @@ export default function AddressesPage() {
   async function load() {
     try {
       const data = await fetchAddresses();
-      setAddresses(data);
+      if (user?.is_business && user?.company_address) {
+        const syntheticCompanyAddr: SavedAddress = {
+          id: -1,
+          name: "Company Address",
+          recipient_name: user?.company_name || user?.first_name || "Company",
+          phone: user?.company_phone || user?.phone || "",
+          address_line1: user?.company_address,
+          address_line2: "",
+          city: user?.company_city || "",
+          state: user?.company_state || "",
+          postal_code: user?.company_pincode || "",
+          is_default: false,
+        };
+        setAddresses([syntheticCompanyAddr, ...data]);
+      } else {
+        setAddresses(data);
+      }
     } catch (err) {
       setErr(err instanceof Error ? err.message : "Failed to load addresses");
     } finally {
@@ -72,8 +88,10 @@ export default function AddressesPage() {
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    if (user !== undefined) {
+      load();
+    }
+  }, [user]);
 
   function handleEdit(addr: SavedAddress) {
     setIsEditing(addr.id);
@@ -307,42 +325,64 @@ export default function AddressesPage() {
       ) : (
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {addresses.map((addr) => (
-            <div key={addr.id} className="relative rounded-lg border border-neutral-200 p-5 shadow-sm">
+            <div key={addr.id} className={`relative rounded-lg border ${addr.id === -1 ? 'border-store-navy bg-blue-50/20' : 'border-neutral-200'} p-5 shadow-sm`}>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
-                  <IconMapPin className="h-4 w-4 text-neutral-500" />
+                  {addr.id === -1 ? <IconBriefcase className="h-4 w-4 text-store-navy" /> : <IconMapPin className="h-4 w-4 text-neutral-500" />}
                   <span className="text-sm font-bold text-neutral-900">{addr.name}</span>
                   {addr.is_default && (
                     <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-bold text-neutral-600 uppercase tracking-wide">
                       Default
                     </span>
                   )}
+                  {addr.id === -1 && (
+                    <span className="rounded bg-store-navy px-1.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wide">
+                      Business
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(addr)}
-                    className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-                    title="Edit"
-                  >
-                    <IconEdit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(addr.id)}
-                    className="rounded p-1 text-neutral-400 hover:bg-red-50 hover:text-red-600"
-                    title="Delete"
-                  >
-                    <IconTrash className="h-4 w-4" />
-                  </button>
+                  {addr.id !== -1 ? (
+                    <>
+                      <button
+                        onClick={() => handleEdit(addr)}
+                        className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+                        title="Edit"
+                      >
+                        <IconEdit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(addr.id)}
+                        className="rounded p-1 text-neutral-400 hover:bg-red-50 hover:text-red-600"
+                        title="Delete"
+                      >
+                        <IconTrash className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <Link href="/account" className="text-xs text-store-link hover:underline">
+                      Edit Profile
+                    </Link>
+                  )}
                 </div>
               </div>
               <div className="mt-3 text-sm text-neutral-600">
                 <p className="font-semibold text-neutral-800">{addr.recipient_name}</p>
-                <p className="mt-1">{addr.address_line1}</p>
-                {addr.address_line2 && <p>{addr.address_line2}</p>}
-                <p>
-                  {addr.city}, {addr.state} - {addr.postal_code}
-                </p>
-                <p className="mt-2 text-xs">Phone: {addr.phone}</p>
+                {addr.id === -1 ? (
+                  <>
+                    <p className="whitespace-pre-wrap mt-1">{addr.address_line1}</p>
+                    <p>{addr.city}, {addr.state} - {addr.postal_code}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-1">{addr.address_line1}</p>
+                    {addr.address_line2 && <p>{addr.address_line2}</p>}
+                    <p>
+                      {addr.city}, {addr.state} - {addr.postal_code}
+                    </p>
+                  </>
+                )}
+                {addr.phone && <p className="mt-2 text-xs">Phone: {addr.phone}</p>}
               </div>
             </div>
           ))}

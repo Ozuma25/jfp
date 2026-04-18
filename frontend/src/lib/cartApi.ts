@@ -110,6 +110,27 @@ function cartHeaders(options: { isMultipart?: boolean; token?: string | null } =
   return h;
 }
 
+async function fetchWithTokenRetry(url: string, init: RequestInit, isMultipart?: boolean): Promise<Response> {
+  const token = getAccessToken();
+  const headers = cartHeaders({ isMultipart, token });
+  let res = await fetch(url, { ...init, headers });
+
+  if (res.status === 401 && token) {
+    const newAccess = await refreshIfNeeded();
+    if (newAccess) {
+      const retryHeaders = cartHeaders({ isMultipart, token: newAccess });
+      res = await fetch(url, { ...init, headers: retryHeaders });
+    } else {
+      clearTokens();
+      // If we cleared tokens, the user is effectively a guest now, 
+      // but returning the 401 response might throw `Given token not valid`
+      // For now we'll just return the 401 response and let handleResponse throw, 
+      // which is better than doing nothing, although the UI might bubble the error.
+    }
+  }
+  return res;
+}
+
 export async function fetchCart(): Promise<CartData> {
   const token = getAccessToken();
   if (!token) {
@@ -149,7 +170,7 @@ export async function addToCart(
   }
 
   let body: any;
-  let headers: Headers;
+  let isMultipart = false;
 
   if (designFile) {
     body = new FormData();
@@ -157,20 +178,26 @@ export async function addToCart(
     body.append("quantity", quantity.toString());
     body.append("custom_design_file", designFile);
     if (variantId != null) body.append("variant_id", variantId.toString());
-    headers = cartHeaders({ isMultipart: true });
+    isMultipart = true;
   } else {
     const payload: Record<string, unknown> = { product_slug: productSlug, quantity };
     if (variantId != null) payload.variant_id = variantId;
     body = JSON.stringify(payload);
-    headers = cartHeaders({ isMultipart: false });
+    isMultipart = false;
   }
 
   const itemsUrl = await resolveApiFetchUrl("/api/cart/items/");
-  const res = await fetch(itemsUrl, {
+  const res = await fetchWithTokenRetry(itemsUrl, {
     method: "POST",
-    headers,
     body,
-  });
+  }, isMultipart);
+  
+  if (res.status === 401 && !getAccessToken()) {
+      // Retried but still failed or cleared tokens. Add as guest instead.
+      await addGuestCartItem(productSlug, quantity);
+      return fetchGuestCartData();
+  }
+
   return handleResponse<CartData>(res);
 }
 
@@ -185,11 +212,10 @@ export async function updateCartItem(
     return fetchGuestCartData();
   }
   const patchUrl = await resolveApiFetchUrl(`/api/cart/items/${itemId}/`);
-  const res = await fetch(patchUrl, {
+  const res = await fetchWithTokenRetry(patchUrl, {
     method: "PATCH",
-    headers: cartHeaders(),
     body: JSON.stringify({ quantity }),
-  });
+  }, false);
   return handleResponse<CartData>(res);
 }
 
@@ -200,10 +226,9 @@ export async function removeCartItem(itemId: number, productSlug?: string): Prom
     return fetchGuestCartData();
   }
   const delUrl = await resolveApiFetchUrl(`/api/cart/items/${itemId}/`);
-  const res = await fetch(delUrl, {
+  const res = await fetchWithTokenRetry(delUrl, {
     method: "DELETE",
-    headers: cartHeaders(),
-  });
+  }, false);
   return handleResponse<CartData>(res);
 }
 
