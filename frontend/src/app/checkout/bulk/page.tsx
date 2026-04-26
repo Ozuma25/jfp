@@ -245,8 +245,6 @@ function BulkCheckoutContent() {
   const totalPrice = parseFloat(order.total);
   const subtotal = parseFloat(order.subtotal || order.total);
   const gstTotal = Math.max(0, totalPrice - subtotal);
-  const cgst = gstTotal / 2;
-  const sgst = gstTotal / 2;
   const hasGst = gstTotal > 0;
 
   return (
@@ -433,26 +431,10 @@ function BulkCheckoutContent() {
               <span>₹{subtotal.toLocaleString("en-IN")}</span>
             </div>
             {hasGst && (
-              <>
-                <div className="flex justify-between text-neutral-500">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-neutral-300 inline-block"></span>
-                    CGST (9%)
-                  </span>
-                  <span>₹{cgst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-neutral-500">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-neutral-300 inline-block"></span>
-                    SGST (9%)
-                  </span>
-                  <span>₹{sgst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-neutral-500 bg-neutral-50 rounded-lg px-2 py-1">
-                  <span className="font-medium">Total GST (18%)</span>
-                  <span className="font-medium">₹{gstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-              </>
+              <div className="flex justify-between text-neutral-500 bg-neutral-50 rounded-lg px-2 py-1">
+                <span className="font-medium">GST</span>
+                <span className="font-medium">₹{gstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
             )}
             <div className="flex justify-between text-neutral-400">
               <span>Delivery</span>

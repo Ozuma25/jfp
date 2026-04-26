@@ -126,17 +126,6 @@ export function SiteHeader() {
           {/* Column 2: Logo (Center) */}
           <div className="flex shrink-0 justify-center items-center" style={{ overflow: 'visible' }}>
             <Link href="/" className="group outline-none inline-block text-center relative" style={{ overflow: 'visible' }}>
-              {/* Gift ribbon SVG */}
-              <span className="absolute -top-5 md:-top-4 left-1/2 -translate-x-1/2 pointer-events-none z-10 scale-75 md:scale-100">
-                <svg width="48" height="24" viewBox="0 0 48 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-sm">
-                  <path d="M24 14 C18 4, 6 6, 12 14 C6 22, 18 24, 24 14Z" fill="#C41E3A" opacity="0.85" />
-                  <path d="M24 14 C30 4, 42 6, 36 14 C42 22, 30 24, 24 14Z" fill="#C41E3A" opacity="0.85" />
-                  <circle cx="24" cy="14" r="3" fill="#9B1B30" />
-                  <path d="M18 16 Q12 20, 6 22" stroke="#C41E3A" strokeWidth="2" fill="none" opacity="0.6" strokeLinecap="round" />
-                  <path d="M30 16 Q36 20, 42 22" stroke="#C41E3A" strokeWidth="2" fill="none" opacity="0.6" strokeLinecap="round" />
-                </svg>
-              </span>
-
               {/* Brand name */}
               <span className="relative font-serif text-xl sm:text-2xl md:text-3xl font-bold tracking-tight leading-none whitespace-nowrap block">
                 <span className="text-store-navy group-hover:text-store-button transition-colors duration-300">Jai </span>

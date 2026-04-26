@@ -103,7 +103,19 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductVariant
-        fields = ("id", "color", "size", "price", "stock", "sku_suffix", "sort_order", "images")
+        fields = (
+            "id",
+            "color",
+            "size",
+            "price",
+            "stock",
+            "sku_suffix",
+            "sort_order",
+            "images",
+            "height_cm",
+            "width_cm",
+            "weight_g",
+        )
 
     def get_images(self, obj: ProductVariant) -> list[str]:
         request = self.context.get("request")
@@ -139,6 +151,9 @@ class ProductDetailSerializer(ProductListSerializer):
             "recent_sales_count",
             "variants",
             "has_variants",
+            "height_cm",
+            "width_cm",
+            "weight_g",
         )
 
     def get_has_variants(self, obj: Product) -> bool:

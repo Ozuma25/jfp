@@ -57,6 +57,11 @@ class BulkQuoteRequest(models.Model):
 
 
 class Order(models.Model):
+    class ShippingMethod(models.TextChoices):
+        STORE_PICKUP = "store_pickup", "Direct store pickup"
+        DOORSTEP = "doorstep", "Doorstep delivery"
+        CUSTOM_COURIER = "custom_courier", "Custom courier (fee quoted separately)"
+
     class Status(models.TextChoices):
         UNDER_REVIEW = "under_review", "Under Review (Bespoke Design)"
         DESIGN_APPROVED_PENDING_PAYMENT = "design_approved", "Design Approved, Pending Payment"
@@ -64,6 +69,7 @@ class Order(models.Model):
         PENDING_PAYMENT = "pending_payment", "Pending payment"
         PAID = "paid", "Paid"
         PROCESSING = "processing", "Processing"
+        READY_FOR_PICKUP = "ready_for_pickup", "Ready for pickup"
         SHIPPED = "shipped", "Shipped"
         DELIVERED = "delivered", "Delivered"
         CANCELLED = "cancelled", "Cancelled"
@@ -86,6 +92,12 @@ class Order(models.Model):
     cgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     sgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     shipping_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    shipping_method = models.CharField(
+        max_length=32,
+        choices=ShippingMethod.choices,
+        default=ShippingMethod.DOORSTEP,
+        db_index=True,
+    )
     total = models.DecimalField(max_digits=12, decimal_places=2)
     coupon = models.ForeignKey(
         "coupons.Coupon",
@@ -102,6 +114,15 @@ class Order(models.Model):
     shipping_city = models.CharField(max_length=100)
     shipping_state = models.CharField(max_length=100)
     shipping_postal_code = models.CharField(max_length=20)
+
+    # Business / GST billing snapshot (explicit per-order flag)
+    is_business_order = models.BooleanField(
+        default=False,
+        help_text="True if customer placed this order as a business (GST invoice).",
+        db_index=True,
+    )
+    billing_company_name = models.CharField(max_length=200, blank=True)
+    billing_gst_number = models.CharField(max_length=50, blank=True)
 
     is_bulk = models.BooleanField(default=False, help_text="True if order was created via Bulk Quote.")
     order_number = models.CharField(

@@ -1,5 +1,5 @@
 import io
-from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -63,7 +63,7 @@ def generate_order_receipt_pdf(order):
 
     # --- Header ---
     elements.append(Paragraph("Jai Fancy Packs", title_style))
-    elements.append(Paragraph("Premium Gifting & Boutique Packaging — Estd. 2023", subtitle_style))
+    elements.append(Paragraph("Premium Return Gift & Packaging Solution — Estd. 2023", subtitle_style))
     elements.append(Spacer(1, 1*cm))
 
     # --- Order Info & Addresses ---
@@ -76,10 +76,19 @@ def generate_order_receipt_pdf(order):
     s_pin = order.shipping_postal_code or ''
     s_phone = order.shipping_phone or ''
 
+    is_store_pickup = getattr(order, "shipping_method", "") == "store_pickup"
+    if is_store_pickup:
+        ship_block = f"<b>SHIPPING TO:</b><br/>{s_name}<br/>In-store pickup"
+    else:
+        ship_block = (
+            f"<b>SHIPPING TO:</b><br/>{s_name}<br/>{s_addr}<br/>"
+            f"{s_city}, {s_state} — {s_pin}<br/>Phone: {s_phone}"
+        )
+
     data = [
         [
             Paragraph(f"<b>ORDER RECEIPT</b><br/>Order: {o_num}<br/>Date: {o_date}", info_style),
-            Paragraph(f"<b>SHIPPING TO:</b><br/>{s_name}<br/>{s_addr}<br/>{s_city}, {s_state} — {s_pin}<br/>Phone: {s_phone}", info_style)
+            Paragraph(ship_block, info_style),
         ]
     ]
     t = Table(data, colWidths=[8*cm, 9*cm])
@@ -90,26 +99,24 @@ def generate_order_receipt_pdf(order):
     elements.append(t)
     elements.append(Spacer(1, 1*cm))
 
-    # --- Items Table ---
-    # Header
-    table_data = [['Product', 'Rate', 'GST %', 'Qty', 'Line Total']]
-    
+    # --- Items Table (rate = per unit incl. taxes; no GST column) ---
+    table_data = [["Product", "Rate", "Qty", "Line Total"]]
+
     for line in order.lines.all().select_related("product"):
         p_name = line.product.name if line.product else "Boutique Item"
-        u_price = line.unit_price or 0
-        g_pct = line.gst_percentage or 0
-        qty = line.quantity or 0
+        raw_qty = line.quantity or 0
         l_total = line.line_total or 0
-        
+        div_qty = raw_qty if raw_qty >= 1 else 1
+        unit_incl = (Decimal(str(l_total)) / Decimal(div_qty)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
         table_data.append([
             Paragraph(p_name, item_name_style),
-            f"Rs. {u_price}",
-            f"{g_pct}%",
-            str(qty),
-            f"Rs. {l_total}"
+            f"Rs. {unit_incl}",
+            str(raw_qty),
+            f"Rs. {l_total}",
         ])
 
-    table = Table(table_data, colWidths=[7*cm, 2.5*cm, 2*cm, 1.5*cm, 4*cm])
+    table = Table(table_data, colWidths=[8.5 * cm, 3 * cm, 1.5 * cm, 3.5 * cm])
     table.setStyle(TableStyle([
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('FONTSIZE', (0,0), (-1,0), 10),
@@ -125,20 +132,17 @@ def generate_order_receipt_pdf(order):
     elements.append(table)
     elements.append(Spacer(1, 1*cm))
 
-    # --- Calculation Summary ---
-    o_sub = order.subtotal or 0
-    o_disc = order.discount_amount or 0
-    o_cgst = order.cgst_amount or 0
-    o_sgst = order.sgst_amount or 0
-    o_total = order.total or 0
+    # --- Calculation Summary (tax-inclusive items; no GST breakdown) ---
+    lines_sum = sum((Decimal(str(line.line_total or 0)) for line in order.lines.all()), Decimal("0")).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    ship = Decimal(str(order.shipping_cost or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    o_total = Decimal(str(order.total or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    summary_data = [
-        ["Subtotal", f"Rs. {o_sub}"],
-        ["Coupon Discount", f"- Rs. {o_disc}"],
-        ["CGST (9%)", f"Rs. {o_cgst}"],
-        ["SGST (9%)", f"Rs. {o_sgst}"],
-        ["Grand Total", f"Rs. {o_total}"],
-    ]
+    summary_data = [["Subtotal", f"Rs. {lines_sum}"]]
+    if ship > 0:
+        summary_data.append(["Delivery", f"Rs. {ship}"])
+    summary_data.append(["Grand Total", f"Rs. {o_total}"])
     
     summary_table = Table(summary_data, colWidths=[13*cm, 4*cm])
     summary_table.setStyle(TableStyle([

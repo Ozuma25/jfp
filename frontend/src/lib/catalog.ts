@@ -42,6 +42,9 @@ export type ProductVariant = {
   sku_suffix: string;
   sort_order: number;
   images: string[];
+  height_cm?: string | number | null;
+  width_cm?: string | number | null;
+  weight_g?: string | number | null;
 };
 
 export type ProductDetail = ProductCard & {
@@ -53,6 +56,9 @@ export type ProductDetail = ProductCard & {
   created_at: string;
   recent_sales_count: number;
   variants: ProductVariant[];
+  height_cm?: string | number | null;
+  width_cm?: string | number | null;
+  weight_g?: string | number | null;
 };
 
 export async function fetchProductList(

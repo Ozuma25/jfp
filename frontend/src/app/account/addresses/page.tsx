@@ -62,8 +62,22 @@ export default function AddressesPage() {
 
   async function load() {
     try {
-      const data = await fetchAddresses();
+      let data = await fetchAddresses();
       if (user?.is_business && user?.company_address) {
+        // Hide any SavedAddress rows that are actually the same as the business profile address
+        // (these can be created by checkout auto-save in older versions)
+        const ca = (user.company_address || "").trim().toLowerCase();
+        const cp = (user.company_pincode || "").trim().toLowerCase();
+        data = data.filter((a) => {
+          const a1 = (a.address_line1 || "").trim().toLowerCase();
+          const pc = (a.postal_code || "").trim().toLowerCase();
+          if (!ca || !a1) return true;
+          if (a1 !== ca) return true;
+          // If company pincode is set, require it to match to treat as duplicate
+          if (cp && pc && pc !== cp) return true;
+          return false;
+        });
+
         const syntheticCompanyAddr: SavedAddress = {
           id: -1,
           name: "Company Address",

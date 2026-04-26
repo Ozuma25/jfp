@@ -3,9 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { checkoutRequest, verifyRazorpayPayment, type CheckoutResponse } from "@/lib/ordersApi";
+import {
+  checkoutRequest,
+  fetchShippingInfo,
+  verifyRazorpayPayment,
+  type CheckoutResponse,
+  type ShippingInfo,
+  type ShippingMethodId,
+} from "@/lib/ordersApi";
 import { fetchCart, updateCartItem, removeCartItem, type CartData } from "@/lib/cartApi";
 import { fetchAddresses, createAddress, type SavedAddress, updateMe } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
@@ -29,6 +36,10 @@ export default function CheckoutPage() {
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [useNewAddress, setUseNewAddress] = useState(false);
   const [isBusinessOrder, setIsBusinessOrder] = useState(false);
+  const [selectedAddressKey, setSelectedAddressKey] = useState<string | null>(null); // "company" | "<id>"
+  const [shippingInfo, setShippingInfo] = useState<ShippingInfo | null>(null);
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethodId>("doorstep");
+  const prevShippingMethod = useRef<ShippingMethodId>(shippingMethod);
   
   const [promptBusinessSave, setPromptBusinessSave] = useState(false);
   const [bCompanyName, setBCompanyName] = useState("");
@@ -125,6 +136,10 @@ export default function CheckoutPage() {
   };
 
   useEffect(() => {
+    fetchShippingInfo().then(setShippingInfo).catch(console.error);
+  }, []);
+
+  useEffect(() => {
     fetchCart().then(setCart).catch(console.error);
     if (user) {
       fetchAddresses().then((addrs) => {
@@ -134,6 +149,7 @@ export default function CheckoutPage() {
         } else {
           // Pre-select default address
           const defAddr = addrs.find(a => a.is_default) || addrs[0];
+          setSelectedAddressKey(String(defAddr.id));
           setShippingName(defAddr.recipient_name);
           setShippingPhone(defAddr.phone);
           setLine1(defAddr.address_line1);
@@ -245,6 +261,76 @@ export default function CheckoutPage() {
     }
   }
 
+  const companyAddressOption: SavedAddress | null =
+    user?.is_business && user?.company_address
+      ? {
+          id: -1,
+          name: "Company Address",
+          recipient_name: user.company_name || user.first_name || "Company",
+          phone: user.company_phone || user.phone || "",
+          address_line1: user.company_address || "",
+          address_line2: "",
+          city: user.company_city || "",
+          state: user.company_state || "",
+          postal_code: user.company_pincode || "",
+          is_default: false,
+        }
+      : null;
+
+  const addressOptions: SavedAddress[] = useMemo(
+    () => (companyAddressOption ? [companyAddressOption, ...savedAddresses] : savedAddresses),
+    [companyAddressOption, savedAddresses]
+  );
+
+  function applyStorePickupFields(info: ShippingInfo) {
+    setLine1(info.store_pickup.line1);
+    setLine2(info.store_pickup.line2 || "");
+    setCity(info.store_pickup.city);
+    setState(info.store_pickup.state);
+    setPostal(info.store_pickup.postal_code);
+  }
+
+  useEffect(() => {
+    const prev = prevShippingMethod.current;
+    prevShippingMethod.current = shippingMethod;
+
+    if (shippingMethod === "store_pickup" && shippingInfo) {
+      applyStorePickupFields(shippingInfo);
+      return;
+    }
+
+    if (prev === "store_pickup" && shippingMethod !== "store_pickup") {
+      const key = selectedAddressKey;
+      const addr = key && addressOptions.find((a) => (a.id === -1 ? "company" : String(a.id)) === key);
+      if (addr) {
+        setShippingName(addr.recipient_name);
+        setShippingPhone(addr.phone);
+        setLine1(addr.address_line1);
+        setLine2(addr.address_line2 || "");
+        setCity(addr.city);
+        setState(addr.state);
+        setPostal(addr.postal_code);
+      }
+    }
+  }, [shippingMethod, shippingInfo, selectedAddressKey, addressOptions]);
+
+  function applySelectedAddress(addr: SavedAddress) {
+    setSelectedAddressKey(addr.id === -1 ? "company" : String(addr.id));
+    if (shippingMethod === "store_pickup" && shippingInfo) {
+      setShippingName(addr.recipient_name);
+      setShippingPhone(addr.phone);
+      applyStorePickupFields(shippingInfo);
+      return;
+    }
+    setShippingName(addr.recipient_name);
+    setShippingPhone(addr.phone);
+    setLine1(addr.address_line1);
+    setLine2(addr.address_line2 || "");
+    setState(addr.state);
+    setCity(addr.city);
+    setPostal(addr.postal_code);
+  }
+
   function handleAddressSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr("");
@@ -342,19 +428,9 @@ export default function CheckoutPage() {
         shipping_city,
         shipping_state,
         shipping_postal_code,
+        shipping_method: shippingMethod,
+        is_business_order: isBusinessOrder,
       };
-
-      if (isBusinessOrder && user?.is_business && user?.company_name) {
-          finalShipping = {
-             shipping_name: user.company_name,
-             shipping_phone: user.company_phone || user.phone,
-             shipping_address_line1: user.company_address || "Company Address",
-             shipping_address_line2: `GST: ${user.gst_number || "N/A"}`,
-             shipping_city: user.company_city || "N/A",
-             shipping_state: user.company_state || "N/A",
-             shipping_postal_code: user.company_pincode || "000000",
-          };
-      }
 
       const data = await checkoutRequest(finalShipping);
 
@@ -388,6 +464,33 @@ export default function CheckoutPage() {
 
   // Still waiting for redirect to fire
   if (!user || !user.is_email_verified) return null;
+
+  const doorstepFeeNum = parseFloat(shippingInfo?.doorstep_fee_inr || "0");
+  const cartTotalNum = parseFloat(cart.total || "0");
+  const shippingChargeNum = shippingMethod === "doorstep" ? doorstepFeeNum : 0;
+  const estimatedOrderTotal = (cartTotalNum + shippingChargeNum).toFixed(2);
+
+  const methodOptions: { id: ShippingMethodId; title: string; description: string }[] = [
+    {
+      id: "store_pickup",
+      title: "Direct store pickup",
+      description: "No shipping fee. We will notify you when your order is ready to collect at our store.",
+    },
+    {
+      id: "doorstep",
+      title: "Doorstep delivery",
+      description:
+        doorstepFeeNum > 0
+          ? `Standard home or office delivery. Fee added at checkout: ₹${doorstepFeeNum.toFixed(2)}.`
+          : "Standard home or office delivery. No delivery fee is added at checkout right now.",
+    },
+    {
+      id: "custom_courier",
+      title: "Custom courier service",
+      description:
+        "We arrange transport with your courier. Shipping cost will be quoted separately — you pay the courier fee outside this checkout.",
+    },
+  ];
 
   return (
     <div className="bg-gray-50 min-h-screen pb-20">
@@ -436,11 +539,45 @@ export default function CheckoutPage() {
                             } else {
                                setPromptBusinessSave(false);
                             }
+                            // Prefer company address when switching to business order
+                            if (e.target.checked && companyAddressOption) {
+                              applySelectedAddress(companyAddressOption);
+                              setUseNewAddress(false);
+                            }
                          }}
                        />
                        <label htmlFor="businessToggle" className="ml-2 font-bold text-gray-900 cursor-pointer">
                           Order for your business?
                        </label>
+                    </div>
+
+                    <div className="mb-6 space-y-3">
+                      <p className="text-[13px] font-bold text-gray-900">How would you like to receive this order?</p>
+                      <div className="space-y-2">
+                        {methodOptions.map((opt) => {
+                          const checked = shippingMethod === opt.id;
+                          return (
+                            <label
+                              key={opt.id}
+                              className={`flex gap-3 rounded-lg border p-3 cursor-pointer text-[13px] leading-snug ${
+                                checked ? "border-store-navy bg-blue-50/40" : "border-gray-200 bg-white hover:bg-gray-50"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="shipping_method"
+                                className="mt-0.5"
+                                checked={checked}
+                                onChange={() => setShippingMethod(opt.id)}
+                              />
+                              <span>
+                                <span className="font-bold text-gray-900 block">{opt.title}</span>
+                                <span className="text-gray-600">{opt.description}</span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {isBusinessOrder && promptBusinessSave && (
@@ -490,48 +627,32 @@ export default function CheckoutPage() {
                         </form>
                     )}
 
-                    {isBusinessOrder && !promptBusinessSave && user?.company_name && (
-                        <div className="mb-6 bg-blue-50/40 border border-store-navy rounded-lg p-5">
-                           <div className="flex justify-between items-start mb-2">
-                              <h3 className="font-bold text-store-navy flex items-center gap-2"><span className="text-xl">🏢</span> Using Company Details</h3>
-                              <Button onClick={()=> {setPromptBusinessSave(true); setBCompanyName(user.company_name||""); setBGstNumber(user.gst_number||""); setBCompanyPhone(user.company_phone||""); setBCompanyEmail(user.company_email||""); setBCompanyAddress(user.company_address||""); setBCompanyCity(user.company_city||""); setBCompanyState(user.company_state||""); setBCompanyCountry(user.company_country||"India"); setBCompanyPincode(user.company_pincode||"");}} variant="outline" className="text-xs h-7 px-2">Edit</Button>
-                           </div>
-                           <p className="text-sm text-gray-900 mt-2 font-bold">{user.company_name} <span className="font-normal text-gray-600">(GST: {user.gst_number?.toUpperCase()})</span></p>
-                           <p className="text-sm text-gray-700 mt-1">{user.company_address}</p>
-                           <p className="text-sm text-gray-700 mt-1">{user.company_city}, {user.company_state} - {user.company_pincode}</p>
-                           <p className="text-sm text-gray-700 mt-1">Phone: {user.company_phone}</p>
-                           <p className="text-sm font-bold text-gray-900 mt-4 pt-4 border-t border-gray-200">This address will be used for shipping and billing.</p>
-                           <Button onClick={() => setStep(2)} variant="secondary" className="mt-4 px-8">Confirm &amp; Proceed</Button>
-                        </div>
-                    )}
-
-                    {!isBusinessOrder && savedAddresses.length > 0 && !useNewAddress ? (
+                    {addressOptions.length > 0 && !useNewAddress ? (
                       <div>
                         <div className="space-y-3 mb-6">
-                           {savedAddresses.map(addr => (
+                           {addressOptions.map(addr => {
+                             const key = addr.id === -1 ? "company" : String(addr.id);
+                             const checked = selectedAddressKey === key;
+                             return (
                              <div 
-                               key={addr.id} 
-                               className={`border rounded-lg p-4 flex gap-3 cursor-pointer transition-colors ${shipping_name === addr.recipient_name && shipping_address_line1 === addr.address_line1 ? 'border-store-navy bg-blue-50/30' : 'border-gray-300 hover:bg-gray-50 bg-white'}`}
-                               onClick={() => {
-                                  setShippingName(addr.recipient_name);
-                                  setShippingPhone(addr.phone);
-                                  setLine1(addr.address_line1);
-                                  setLine2(addr.address_line2 || "");
-                                  setState(addr.state);
-                                  setCity(addr.city);
-                                  setPostal(addr.postal_code);
-                               }}
+                               key={key} 
+                               className={`border rounded-lg p-4 flex gap-3 cursor-pointer transition-colors ${checked ? 'border-store-navy bg-blue-50/30' : 'border-gray-300 hover:bg-gray-50 bg-white'}`}
+                               onClick={() => applySelectedAddress(addr)}
                              >
-                                <input type="radio" className="mt-1" name="saved_addr" checked={shipping_name === addr.recipient_name && shipping_address_line1 === addr.address_line1} readOnly />
+                                <input type="radio" className="mt-1" name="saved_addr" checked={checked} readOnly />
                                 <div className="text-[13px] text-gray-800">
-                                   <p className="font-bold text-[15px] text-gray-900 mb-1">{addr.name} {addr.is_default && <span className="ml-2 text-[10px] bg-gray-200 text-gray-600 px-1 rounded uppercase">Default</span>}</p>
+                                   <p className="font-bold text-[15px] text-gray-900 mb-1">
+                                     {addr.name}
+                                     {addr.is_default && <span className="ml-2 text-[10px] bg-gray-200 text-gray-600 px-1 rounded uppercase">Default</span>}
+                                     {addr.id === -1 && <span className="ml-2 text-[10px] bg-store-navy text-white px-1 rounded uppercase">Business</span>}
+                                   </p>
                                    <p>{addr.recipient_name}</p>
                                    <p>{addr.address_line1} {addr.address_line2}</p>
                                    <p>{addr.city}, {addr.state} {addr.postal_code}</p>
                                    <p className="mt-1 text-gray-600">Phone: {addr.phone}</p>
                                  </div>
                              </div>
-                           ))}
+                           )})}
                         </div>
                         <div className="flex items-center gap-4">
                            <Button onClick={(e) => { e.preventDefault(); setStep(2); }} disabled={!shipping_name} className="px-8" variant="secondary">
@@ -597,21 +718,18 @@ export default function CheckoutPage() {
 
                {step === 2 && (
                  <div className="px-5 py-3 text-sm text-gray-700 bg-white">
-                    {isBusinessOrder && user?.is_business ? (
-                        <>
-                          <p className="font-bold">{user.company_name} (GST: {user.gst_number?.toUpperCase()})</p>
-                          <p className="whitespace-pre-wrap">{user.company_address}</p>
-                          <p>{user.company_city}, {user.company_state} - {user.company_pincode}</p>
-                          <p className="mt-1">Phone: {user.company_phone}</p>
-                        </>
-                    ) : (
-                        <>
-                          <p className="font-bold">{shipping_name}</p>
-                          <p>{shipping_address_line1} {shipping_address_line2}</p>
-                          <p>{shipping_city}, {shipping_state} {shipping_postal_code}</p>
-                          <p className="mt-1">Phone: {shipping_phone}</p>
-                        </>
+                    {isBusinessOrder && user?.is_business && user?.company_name && (
+                      <p className="text-[12px] text-gray-600 mb-2">
+                        Billing: <span className="font-semibold text-gray-900">{user.company_name}</span>
+                        {user.gst_number ? <> (GST: <span className="font-semibold text-gray-900">{user.gst_number.toUpperCase()}</span>)</> : null}
+                      </p>
                     )}
+                    <>
+                      <p className="font-bold">{shipping_name}</p>
+                      <p>{shipping_address_line1} {shipping_address_line2}</p>
+                      <p>{shipping_city}, {shipping_state} {shipping_postal_code}</p>
+                      <p className="mt-1">Phone: {shipping_phone}</p>
+                    </>
                  </div>
                )}
             </div>
@@ -777,27 +895,42 @@ export default function CheckoutPage() {
                      <span>₹ {cart.subtotal}</span>
                   </div>
                   {cart.tax_data && (
-                    <>
-                      <div className="flex justify-between">
-                         <span>CGST (9%):</span>
-                         <span>₹ {cart.tax_data.cgst_amount}</span>
-                      </div>
-                      <div className="flex justify-between">
-                         <span>SGST (9%):</span>
-                         <span>₹ {cart.tax_data.sgst_amount}</span>
-                      </div>
-                    </>
+                    <div className="flex justify-between">
+                       <span>GST:</span>
+                       <span>₹ {cart.tax_data.gst_amount}</span>
+                    </div>
                   )}
                   <div className="flex justify-between">
-                     <span className="text-gray-500">Delivery:</span>
-                     <span className="text-gray-500 italic">Calculated at dispatch</span>
+                     <span className="text-gray-500">Delivery / shipping:</span>
+                     <span className="text-gray-800 text-right max-w-[55%]">
+                       {shippingMethod === "store_pickup" && (
+                         <span className="text-green-700 font-semibold">Free (store pickup)</span>
+                       )}
+                       {shippingMethod === "doorstep" && (
+                         <span>
+                           {shippingChargeNum > 0 ? (
+                             <>₹ {shippingChargeNum.toFixed(2)}</>
+                           ) : (
+                             <span className="italic text-gray-500">₹0</span>
+                           )}
+                         </span>
+                       )}
+                       {shippingMethod === "custom_courier" && (
+                         <span className="italic text-gray-600 text-[12px]">Quoted &amp; paid separately</span>
+                       )}
+                     </span>
                   </div>
                 </div>
                 
                 <div className="flex justify-between items-center py-2">
                    <span className="font-bold text-lg text-[#B12704]">Order Total:</span>
-                   <span className="font-bold text-lg text-[#B12704]">₹ {cart.total}</span>
+                   <span className="font-bold text-lg text-[#B12704]">₹ {estimatedOrderTotal}</span>
                 </div>
+                {shippingMethod === "custom_courier" && (
+                  <p className="text-[11px] text-gray-500 -mt-1 mb-1">
+                    Total shown is for products and tax only. Courier charges are not included.
+                  </p>
+                )}
             </div>
           </div>
 

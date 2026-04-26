@@ -7,6 +7,7 @@ router.register(r"quotes", views.BulkQuoteRequestViewSet, basename="quote")
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("shipping-info/", views.ShippingInfoView.as_view(), name="shipping-info"),
     path("checkout/", views.CheckoutView.as_view(), name="checkout"),
     path("payments/razorpay/verify/", views.RazorpayVerifyView.as_view(), name="razorpay-verify"),
     path(

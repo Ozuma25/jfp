@@ -38,6 +38,17 @@ export type OrderDetail = OrderListItem & {
   shipping_city: string;
   shipping_state: string;
   shipping_postal_code: string;
+  shipping_method?: string;
+  shipping_cost?: string;
+  /** Present for store pickup: live store address from server settings (not the order snapshot). */
+  pickup_at_store?: {
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    map_url: string;
+  } | null;
   razorpay_order_id: string;
   admin_rejection_reason: string;
   is_bulk: boolean;
@@ -74,6 +85,8 @@ export type CheckoutResponse =
       key_id: string;
     };
 
+export type ShippingMethodId = "store_pickup" | "doorstep" | "custom_courier";
+
 export type ShippingPayload = {
   shipping_name: string;
   shipping_phone: string;
@@ -82,7 +95,29 @@ export type ShippingPayload = {
   shipping_city: string;
   shipping_state: string;
   shipping_postal_code: string;
+  shipping_method?: ShippingMethodId;
+  is_business_order?: boolean;
 };
+
+export type ShippingInfo = {
+  doorstep_fee_inr: string;
+  store_pickup: {
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    postal_code: string;
+  };
+  store_pickup_map_url?: string;
+};
+
+export async function fetchShippingInfo(): Promise<ShippingInfo> {
+  const { resolveApiFetchUrl } = await import("@/lib/api");
+  const url = await resolveApiFetchUrl("/api/shipping-info/");
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<ShippingInfo>;
+}
 
 export async function checkoutRequest(body: ShippingPayload) {
   const r = await authFetch<CheckoutResponse>("/api/checkout/", {

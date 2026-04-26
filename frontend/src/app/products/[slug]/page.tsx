@@ -88,9 +88,9 @@ export default async function ProductDetailPage({ params }: Props) {
   // Fetch related products
   const relatedData = await fetchProductList({
     cat: product.category_slug,
-    page_size: "5",
+    page_size: "8",
   }).catch(() => ({ results: [] }));
-  const relatedProducts = relatedData.results.filter((p) => p.slug !== slug).slice(0, 4);
+  const relatedProducts = relatedData.results.filter((p) => p.slug !== slug).slice(0, 5);
 
   const galleryUrls =
     product.images.length > 0
@@ -163,6 +163,9 @@ export default async function ProductDetailPage({ params }: Props) {
           categorySlug={product.category_slug}
           variants={product.variants ?? []}
           firstImageSrc={galleryUrls[0] ?? null}
+          baseHeightCm={product.height_cm ?? null}
+          baseWidthCm={product.width_cm ?? null}
+          baseWeightG={product.weight_g ?? null}
         />
 
         {/* Related Products Section */}
@@ -182,9 +185,9 @@ export default async function ProductDetailPage({ params }: Props) {
                 View Collection
               </Link>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-5">
               {relatedProducts.map((p) => (
-                <ProductCard key={p.slug} product={p} />
+                <ProductCard key={p.slug} product={p} compact />
               ))}
             </div>
           </div>

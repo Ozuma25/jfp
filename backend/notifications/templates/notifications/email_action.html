@@ -125,7 +125,7 @@
   <div class="wrapper">
     <div class="header">
       <h1>Jai Fancy Packs</h1>
-      <p>Premium Gifting & Boutique Packaging</p>
+      <p>Premium Return Gift &amp; Packaging Solution</p>
     </div>
     
     <div class="content">
@@ -161,6 +161,11 @@
       {% if action_url %}
       <div class="action">
         <a href="{{ action_url }}" class="btn">{{ action_text|default:"View Details" }}</a>
+      </div>
+      {% endif %}
+      {% if secondary_action_url %}
+      <div class="action" style="margin-top: 8px;">
+        <a href="{{ secondary_action_url }}" style="color: #c8a96e; font-weight: 600; font-size: 14px; text-decoration: none;">{{ secondary_action_text|default:"Open in Google Maps" }} →</a>
       </div>
       {% endif %}
     </div>

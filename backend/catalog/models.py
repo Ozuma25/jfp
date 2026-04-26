@@ -124,6 +124,27 @@ class Product(models.Model):
         default=18.00,
         help_text="GST percentage for this product (e.g., 18.00)."
     )
+    height_cm = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Height in centimeters (optional).",
+    )
+    width_cm = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Width in centimeters (optional).",
+    )
+    weight_g = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Weight in grams (optional).",
+    )
 
     class Meta:
         ordering = ["name"]
@@ -203,6 +224,27 @@ class ProductVariant(models.Model):
         help_text="Optional suffix appended to the base SKU (e.g. -RED-L).",
     )
     sort_order = models.PositiveSmallIntegerField(default=0)
+    height_cm = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Override: height in centimeters (optional).",
+    )
+    width_cm = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Override: width in centimeters (optional).",
+    )
+    weight_g = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Override: weight in grams (optional).",
+    )
 
     class Meta:
         ordering = ["sort_order", "id"]

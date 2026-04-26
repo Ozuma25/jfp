@@ -144,6 +144,66 @@ def order_status_changed_notification(sender, instance, created, **kwargs):
             }
         )
 
+    elif instance.status == Order.Status.READY_FOR_PICKUP:
+        spa = getattr(settings, "STORE_PICKUP_ADDRESS", {}) or {}
+        map_url = (getattr(settings, "STORE_PICKUP_MAP_URL", "") or "").strip()
+        addr_lines = [
+            spa.get("line1", "").strip(),
+            spa.get("line2", "").strip(),
+            f'{spa.get("city", "").strip()}, {spa.get("state", "").strip()} {spa.get("postal_code", "").strip()}'.strip().rstrip(","),
+        ]
+        addr_plain = "\n".join(line for line in addr_lines if line)
+        addr_html = "<br/>".join(line for line in addr_lines if line)
+
+        pickup_extra = []
+        meta_info = None
+        plaintext_store = ""
+        template_ctx = {
+            "title": "Ready for Pickup",
+            "greeting": f"Hi {instance.shipping_name}",
+            "paragraphs": [
+                f"Your order <strong>#{instance.order_number}</strong> is packed and ready.",
+            ],
+            "action_url": order_url,
+            "action_text": "View Order",
+        }
+
+        if instance.shipping_method == Order.ShippingMethod.STORE_PICKUP:
+            pickup_extra.append(
+                "Your order is for <strong>store pickup</strong>. Please bring a valid ID and your order number when you visit."
+            )
+            meta_info = [("Pickup location", addr_html)]
+            plaintext_store = f"\n\nPickup location:\n{addr_plain}\n"
+            if map_url:
+                plaintext_store += f"\nGoogle Maps: {map_url}\n"
+                template_ctx["secondary_action_url"] = map_url
+                template_ctx["secondary_action_text"] = "Open in Google Maps"
+        else:
+            pickup_extra.append(
+                "Your order is ready for collection. If you chose delivery, our team will contact you if anything further is needed."
+            )
+
+        template_ctx["paragraphs"].extend(pickup_extra)
+        template_ctx["paragraphs"].append("You can view full details on your order page.")
+        if meta_info:
+            template_ctx["meta_info"] = meta_info
+
+        plain_message = (
+            f"Hi {instance.shipping_name},\n\n"
+            f"Good news: Order #{instance.order_number} is ready for pickup."
+            f"{plaintext_store}"
+            f"\nView your order: {order_url}\n\n"
+            f"Thank you for choosing Jai Fancy Packs."
+        )
+
+        send_email_sync(
+            subject=f"[JFP] Your Order is Ready for Pickup — #{instance.order_number}",
+            message=plain_message,
+            recipient_list=[instance.user.email],
+            email_type="order",
+            template_context=template_ctx,
+        )
+
     elif instance.status == Order.Status.SHIPPED:
         tracking_info = []
         if instance.tracking_number:

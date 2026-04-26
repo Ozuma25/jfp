@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.db.models.deletion import ProtectedError
 from django.db.models import Max
 
-from catalog.forms import ProductAdminForm
+from catalog.forms import ProductAdminForm, ProductVariantAdminForm
 from catalog.models import Category, Product, ProductImage, ProductVariant, ProductVariantImage, SiteSettings
 
 
@@ -19,9 +19,20 @@ class ProductVariantImageInline(admin.TabularInline):
 
 class ProductVariantInline(admin.StackedInline):
     model = ProductVariant
+    form = ProductVariantAdminForm
     extra = 0
     show_change_link = True  # click through to upload variant images
-    fields = ("color", "size", "price_override", "stock", "sku_suffix", "sort_order")
+    fields = (
+        "color",
+        "size",
+        "price_override",
+        "stock",
+        "sku_suffix",
+        "height_cm",
+        "width_cm",
+        "weight_g",
+        "sort_order",
+    )
     readonly_fields = ()
     verbose_name = "Variant (Color / Size)"
     verbose_name_plural = "Variants — add one row per Color/Size combination"
@@ -71,7 +82,11 @@ class ProductAdmin(admin.ModelAdmin):
                     "description",
                     "price",
                     "compare_at_price",
+                    "gst_percentage",
                     "stock",
+                    "height_cm",
+                    "width_cm",
+                    "weight_g",
                     "is_active",
                     "is_bestseller",
                     "is_customizable",
@@ -89,6 +104,9 @@ class ProductAdmin(admin.ModelAdmin):
                     "<br><br>"
                     "<strong>Stock</strong>: For products WITH variants, set stock on each variant below instead. "
                     "This base stock is only used for products with no variants."
+                    "<br><br>"
+                    "<strong>GST %</strong>: Tax rate applied to this product at checkout (e.g. 5, 12, 18). "
+                    "Default when creating a new product is 18% — change per item as needed."
                 ),
             },
         ),
@@ -110,6 +128,10 @@ class ProductAdmin(admin.ModelAdmin):
             "If the JFP- prefix is missing, it is added automatically on save "
             "(e.g. BOX-01 becomes JFP-BOX-01)."
         )
+        if "gst_percentage" in form.base_fields:
+            form.base_fields["gst_percentage"].help_text = (
+                "GST rate for this product (0–100). Used for cart totals and order tax lines."
+            )
         return form
 
     def save_model(self, request, obj, form, change):
@@ -132,8 +154,12 @@ class ProductAdmin(admin.ModelAdmin):
         "category",
         "price",
         "compare_at_price",
+        "gst_percentage",
         "min_qty",
         "stock",
+        "height_cm",
+        "width_cm",
+        "weight_g",
         "is_active",
         "is_bestseller",
     )
@@ -202,11 +228,23 @@ class ProductAdmin(admin.ModelAdmin):
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
     """Separate admin for editing a variant and uploading its images."""
+    form = ProductVariantAdminForm
     inlines = [ProductVariantImageInline]
-    list_display = ("product", "color", "size", "stock", "price_override")
+    list_display = ("product", "color", "size", "stock", "price_override", "height_cm", "width_cm", "weight_g")
     list_filter = ("product__category", "color")
     search_fields = ("product__name", "color", "size")
-    fields = ("product", "color", "size", "price_override", "stock", "sku_suffix", "sort_order")
+    fields = (
+        "product",
+        "color",
+        "size",
+        "price_override",
+        "stock",
+        "sku_suffix",
+        "height_cm",
+        "width_cm",
+        "weight_g",
+        "sort_order",
+    )
     autocomplete_fields = ["product"]
 
 

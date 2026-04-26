@@ -35,18 +35,36 @@ class OrderStatusHistoryInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ("order_number", "user", "status", "total", "currency", "created_at")
-    list_filter = ("status", "currency")
-    search_fields = ("order_number", "user__email", "shipping_name", "razorpay_order_id")
+    list_display = ("order_number", "user", "status", "shipping_method", "total", "currency", "is_business_order", "created_at")
+    list_filter = ("status", "currency", "is_business_order", "shipping_method")
+    search_fields = ("order_number", "user__email", "shipping_name", "razorpay_order_id", "billing_gst_number")
     inlines = (OrderLineInline, OrderStatusHistoryInline)
     fieldsets = (
-        (None, {"fields": ("order_number", "user", "status", "currency", "subtotal", "total")}),
+        (None, {"fields": ("order_number", "business_banner", "user", "status", "currency", "subtotal", "total")}),
+        ("Business (GST Billing)", {"fields": ("is_business_order", "billing_company_name", "billing_gst_number")}),
         ("Bespoke Review", {"fields": ("admin_rejection_reason",)}),
         ("Documents", {"fields": ("invoice_pdf", "invoice_emailed")}),
-        ("Shipping", {"fields": ("shipping_name", "shipping_phone", "shipping_address_line1", "shipping_address_line2", "shipping_city", "shipping_state", "shipping_postal_code")}),
+        ("Shipping", {"fields": ("shipping_method", "shipping_cost", "shipping_name", "shipping_phone", "shipping_address_line1", "shipping_address_line2", "shipping_city", "shipping_state", "shipping_postal_code")}),
         ("Payment Details", {"fields": ("razorpay_order_id", "razorpay_payment_id")}),
     )
-    readonly_fields = ("order_number",)
+    readonly_fields = ("order_number", "business_banner")
+
+    def business_banner(self, obj: Order):
+        if not obj.is_business_order:
+            return format_html(
+                '<div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;color:#111827;">Standard consumer order</div>'
+            )
+        gst = obj.billing_gst_number or "—"
+        company = obj.billing_company_name or "Business customer"
+        return format_html(
+            '<div style="padding:12px;border:2px solid #1d4ed8;border-radius:10px;background:#eff6ff;">'
+            '<div style="font-size:14px;font-weight:700;color:#1e3a8a;margin-bottom:4px;">BUSINESS ORDER (GST)</div>'
+            '<div style="font-size:13px;color:#111827;"><b>{}</b> &nbsp; | &nbsp; GST: <b>{}</b></div>'
+            '</div>',
+            company,
+            gst,
+        )
+    business_banner.short_description = ""
 
     def save_model(self, request, obj, form, change):
         if change:
@@ -59,6 +77,8 @@ class OrderAdmin(admin.ModelAdmin):
                     note = "Bespoke design approved. Awaiting payment authorization."
                 elif obj.status == Order.Status.PAID:
                     note = "Payment successful. Moving to production queue."
+                elif obj.status == Order.Status.READY_FOR_PICKUP:
+                    note = "Order is packed and ready for customer pickup at the store."
                 elif obj.status == Order.Status.SHIPPED:
                     note = "Handcrafted collection has been dispatched. Track your delivery below."
                 elif obj.status == Order.Status.DELIVERED:

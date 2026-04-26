@@ -21,6 +21,9 @@ type Props = {
   compareAtPrice: string | null;
   baseImages: string[];
   baseStock: number;
+  baseHeightCm?: string | number | null;
+  baseWidthCm?: string | number | null;
+  baseWeightG?: string | number | null;
   minQty: number;
   bulkThreshold: number | null;
   isCustomizable: boolean;
@@ -42,6 +45,9 @@ export function ProductDetailClient({
   compareAtPrice,
   baseImages,
   baseStock,
+  baseHeightCm = null,
+  baseWidthCm = null,
+  baseWeightG = null,
   minQty,
   bulkThreshold,
   isCustomizable,
@@ -60,6 +66,11 @@ export function ProductDetailClient({
     variants.length > 0 ? 0 : baseStock
   );
   const [activeVariant, setActiveVariant] = useState<ProductVariant | null>(null);
+
+  const specHeight = activeVariant?.height_cm ?? baseHeightCm;
+  const specWidth = activeVariant?.width_cm ?? baseWidthCm;
+  const specWeight = activeVariant?.weight_g ?? baseWeightG;
+  const hasSpecs = !!(specHeight || specWidth || specWeight);
 
   const handleVariantChange = (selected: {
     variant: ProductVariant | null;
@@ -253,6 +264,34 @@ export function ProductDetailClient({
               ))}
             </div>
           </div>
+
+          {/* Specifications */}
+          {hasSpecs && (
+            <div className="bg-white px-8 py-8 rounded-2xl border border-gray-100">
+              <h2 className="text-lg font-bold text-store-navy mb-4 uppercase tracking-widest text-[11px]">
+                Specifications
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Height</p>
+                  <p className="mt-1 font-semibold text-store-navy">{specHeight ? `${specHeight} cm` : "—"}</p>
+                </div>
+                <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Width</p>
+                  <p className="mt-1 font-semibold text-store-navy">{specWidth ? `${specWidth} cm` : "—"}</p>
+                </div>
+                <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Weight</p>
+                  <p className="mt-1 font-semibold text-store-navy">{specWeight ? `${specWeight} g` : "—"}</p>
+                </div>
+              </div>
+              {activeVariant && (
+                <p className="mt-3 text-[10px] text-neutral-400 font-medium italic">
+                  Showing specs for selected variant.
+                </p>
+              )}
+            </div>
+          )}
 
         </div>
       </div>

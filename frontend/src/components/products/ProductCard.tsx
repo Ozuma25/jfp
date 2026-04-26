@@ -5,9 +5,11 @@ import type { ProductCard as ProductType } from "@/lib/catalog";
 
 type Props = {
   product: ProductType;
+  /** Smaller image, type, and badges — for dense grids (e.g. related products). */
+  compact?: boolean;
 };
 
-export function ProductCard({ product }: Props) {
+export function ProductCard({ product, compact = false }: Props) {
   const { slug, title, price, image, rating, review_count, badge } = product;
 
   // Determine badge styling based on text
@@ -23,6 +25,10 @@ export function ProductCard({ product }: Props) {
     }
   }
 
+  const imgSizes = compact
+    ? "(max-width:640px) 50vw, (max-width:1024px) 33vw, 20vw"
+    : "(max-width:768px) 50vw, (max-width:1024px) 33vw, 25vw";
+
   return (
     <Link href={`/products/${slug}`} className="group block h-full">
       {/* 
@@ -30,14 +36,18 @@ export function ProductCard({ product }: Props) {
         Using aspect-[4/5] and heavily rounded corners to match the requested design.
         No heavy box-shadow to maintain the clean modern grid look.
       */}
-      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-neutral-100 transition-all duration-300">
+      <div
+        className={`relative overflow-hidden bg-neutral-100 transition-all duration-300 ${
+          compact ? "aspect-[4/5] rounded-xl" : "aspect-[4/5] rounded-2xl"
+        }`}
+      >
         {image ? (
           <CloudImage
             src={image}
             alt={title}
             fill
             className={`object-cover transition-transform duration-700 ease-out group-hover:scale-105 ${product.stock <= 0 ? 'grayscale opacity-60' : ''}`}
-            sizes="(max-width:768px) 50vw, (max-width:1024px) 33vw, 25vw"
+            sizes={imgSizes}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-neutral-500 uppercase tracking-widest bg-[#f7f7f7]">
@@ -47,7 +57,13 @@ export function ProductCard({ product }: Props) {
 
         {/* Floating Pill Badges */}
         {badge && (
-          <div className={`absolute left-3 top-3 z-10 rounded-full px-3 py-1 text-[10px] sm:text-[11px] font-bold tracking-wide shadow-sm ${badgeStyle}`}>
+          <div
+            className={`absolute z-10 rounded-full font-bold tracking-wide shadow-sm ${
+              compact
+                ? `left-2 top-2 px-2 py-0.5 text-[8px] sm:text-[9px] ${badgeStyle}`
+                : `left-3 top-3 px-3 py-1 text-[10px] sm:text-[11px] ${badgeStyle}`
+            }`}
+          >
             {badge}
           </div>
         )}
@@ -63,8 +79,18 @@ export function ProductCard({ product }: Props) {
 
         {/* Festive gift ribbon accent */}
         {product.stock > 0 && (
-          <div className="absolute top-0 right-0 z-10 overflow-hidden w-14 h-14 pointer-events-none">
-            <div className="absolute top-[5px] right-[-18px] w-[68px] text-center text-[6px] font-extrabold uppercase tracking-[0.15em] text-white bg-gradient-to-r from-store-button to-[#C59B27] py-[2.5px] rotate-45 shadow-sm">
+          <div
+            className={`absolute top-0 right-0 z-10 overflow-hidden pointer-events-none ${
+              compact ? "w-10 h-10" : "w-14 h-14"
+            }`}
+          >
+            <div
+              className={`absolute text-center font-extrabold uppercase text-white bg-gradient-to-r from-store-button to-[#C59B27] rotate-45 shadow-sm ${
+                compact
+                  ? "top-[3px] right-[-14px] w-[52px] text-[5px] tracking-[0.12em] py-[1px]"
+                  : "top-[5px] right-[-18px] w-[68px] text-[6px] tracking-[0.15em] py-[2.5px]"
+              }`}
+            >
               🎁 Gift
             </div>
           </div>
@@ -75,19 +101,31 @@ export function ProductCard({ product }: Props) {
         Text Container 
         Clean left-aligned typography matching the screenshot
       */}
-      <div className="mt-4 px-1 flex flex-col gap-1">
-        <p className="text-[14px] font-medium leading-[1.3] text-[#1c2434] line-clamp-2 transition-colors">
+      <div className={`flex flex-col ${compact ? "mt-2.5 gap-0.5 px-0.5" : "mt-4 gap-1 px-1"}`}>
+        <p
+          className={`font-medium leading-[1.3] text-[#1c2434] line-clamp-2 transition-colors ${
+            compact ? "text-[11px] sm:text-[12px]" : "text-[14px]"
+          }`}
+        >
           {title}
         </p>
 
-        <div className="flex items-center justify-between mt-1">
-          <p className="font-normal text-[#64748b] text-[13px] tracking-tight">{price}</p>
+        <div className={`flex items-center justify-between ${compact ? "mt-0.5" : "mt-1"}`}>
+          <p
+            className={`font-normal text-[#64748b] tracking-tight ${
+              compact ? "text-[11px] sm:text-[12px]" : "text-[13px]"
+            }`}
+          >
+            {price}
+          </p>
 
           {/* Reviews (Kept but integrated cleanly) */}
           {review_count > 0 && (
-            <div className="flex items-center gap-1 opacity-80">
+            <div className={`flex items-center gap-0.5 opacity-80 ${compact ? "scale-90 origin-right" : "gap-1"}`}>
               <IconStar className="h-3 w-3 text-store-yellow" filled={true} />
-              <span className="text-[11px] font-medium text-slate-500">{rating.toFixed(1)}</span>
+              <span className={`font-medium text-slate-500 ${compact ? "text-[10px]" : "text-[11px]"}`}>
+                {rating.toFixed(1)}
+              </span>
             </div>
           )}
         </div>

@@ -39,6 +39,31 @@ def append_history(order: Order, status_val: str, note: str = "") -> None:
     OrderStatusHistory.objects.create(order=order, status=status_val, note=note)
 
 
+class ShippingInfoView(APIView):
+    """Public storefront: doorstep fee and default store-pickup address snapshot."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        pickup = getattr(settings, "STORE_PICKUP_ADDRESS", {}) or {}
+        fee = getattr(settings, "DOORSTEP_SHIPPING_INR", Decimal("0"))
+        fee = Decimal(fee).quantize(Decimal("0.01"))
+        map_url = getattr(settings, "STORE_PICKUP_MAP_URL", "") or ""
+        return Response(
+            {
+                "doorstep_fee_inr": str(fee),
+                "store_pickup": {
+                    "line1": pickup.get("line1", ""),
+                    "line2": pickup.get("line2", ""),
+                    "city": pickup.get("city", ""),
+                    "state": pickup.get("state", ""),
+                    "postal_code": pickup.get("postal_code", ""),
+                },
+                "store_pickup_map_url": map_url,
+            }
+        )
+
+
 class CheckoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -66,7 +91,10 @@ class CheckoutView(APIView):
 
         cs = CheckoutSerializer(data=request.data)
         cs.is_valid(raise_exception=True)
-        ship = cs.validated_data
+        validated = dict(cs.validated_data)
+        is_business_order = bool(validated.pop("is_business_order", False))
+        shipping_method = validated.pop("shipping_method", Order.ShippingMethod.DOORSTEP)
+        ship = validated
 
         subtotal = Decimal("0")
         for item in items:
@@ -105,7 +133,12 @@ class CheckoutView(APIView):
                 "custom_design_file": item.custom_design_file,
             })
 
-        order_total = max(subtotal - discount_amount + total_gst, Decimal("0.01"))
+        if shipping_method == Order.ShippingMethod.DOORSTEP:
+            shipping_cost = getattr(settings, "DOORSTEP_SHIPPING_INR", Decimal("0"))
+        else:
+            shipping_cost = Decimal("0")
+        shipping_cost = Decimal(shipping_cost).quantize(Decimal("0.01"))
+        order_total = max(subtotal - discount_amount + total_gst + shipping_cost, Decimal("0.01"))
         cgst = (total_gst / Decimal("2")).quantize(Decimal("0.01"))
         sgst = total_gst - cgst
 
@@ -117,6 +150,12 @@ class CheckoutView(APIView):
 
         try:
             with transaction.atomic():
+                profile = getattr(request.user, "profile", None)
+                allow_business = bool(profile and getattr(profile, "is_business", False) and getattr(profile, "gst_number", "").strip())
+                is_business_order = bool(is_business_order and allow_business)
+                billing_company_name = (getattr(profile, "company_name", "") or "").strip() if is_business_order else ""
+                billing_gst_number = (getattr(profile, "gst_number", "") or "").strip() if is_business_order else ""
+
                 order = Order.objects.create(
                     user=request.user,
                     subtotal=subtotal,
@@ -124,9 +163,14 @@ class CheckoutView(APIView):
                     gst_amount=total_gst,
                     cgst_amount=cgst,
                     sgst_amount=sgst,
+                    shipping_cost=shipping_cost,
+                    shipping_method=shipping_method,
                     total=order_total,
                     coupon=coupon,
                     status=status_val,
+                    is_business_order=is_business_order,
+                    billing_company_name=billing_company_name,
+                    billing_gst_number=billing_gst_number,
                     **ship,
                 )
                 if coupon:
@@ -176,7 +220,20 @@ class CheckoutView(APIView):
                     postal_code__iexact=ship.get("shipping_postal_code", "")
                 ).exists()
 
-                if not address_exists:
+                # Don't duplicate the user's company address in SavedAddress; it already lives on the profile
+                is_company_shipping = False
+                try:
+                    if getattr(request.user, "profile", None) and getattr(request.user.profile, "is_business", False):
+                        ca = (getattr(request.user.profile, "company_address", "") or "").strip()
+                        cp = (getattr(request.user.profile, "company_pincode", "") or "").strip()
+                        sa = (ship.get("shipping_address_line1", "") or "").strip()
+                        sp = (ship.get("shipping_postal_code", "") or "").strip()
+                        if ca and sa and ca.lower() == sa.lower() and (not cp or (cp and cp.lower() == sp.lower())):
+                            is_company_shipping = True
+                except Exception:
+                    is_company_shipping = False
+
+                if not address_exists and not is_company_shipping:
                     SavedAddress.objects.create(
                         user=request.user,
                         name="Recent Checkout",
@@ -369,7 +426,13 @@ class OrderCancelView(APIView):
         with transaction.atomic():
             order = Order.objects.select_for_update().get(pk=order.pk)
             # Re-check status inside atomic block
-            if order.status in [Order.Status.PAID, Order.Status.SHIPPED, Order.Status.DELIVERED, Order.Status.CANCELLED]:
+            if order.status in [
+                Order.Status.PAID,
+                Order.Status.READY_FOR_PICKUP,
+                Order.Status.SHIPPED,
+                Order.Status.DELIVERED,
+                Order.Status.CANCELLED,
+            ]:
                 return Response({"detail": "Cannot cancel this order."}, status=status.HTTP_400_BAD_REQUEST)
             
             # Return stock
@@ -540,7 +603,10 @@ class BulkQuoteRequestViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, vi
             total_gst = (subtotal * gst_pct / Decimal("100")).quantize(Decimal("0.01"))
             cgst = (total_gst / Decimal("2")).quantize(Decimal("0.01"))
             sgst = (total_gst - cgst)
-            order_total = subtotal + total_gst
+            shipping_method = Order.ShippingMethod.DOORSTEP
+            shipping_cost = Decimal(getattr(settings, "DOORSTEP_SHIPPING_INR", Decimal("0"))).quantize(Decimal("0.01"))
+            lines_total = (subtotal + total_gst).quantize(Decimal("0.01"))
+            order_total = (lines_total + shipping_cost).quantize(Decimal("0.01"))
 
             addr = SavedAddress.objects.filter(user=request.user, is_default=True).first() or \
                    SavedAddress.objects.filter(user=request.user).first()
@@ -559,6 +625,8 @@ class BulkQuoteRequestViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, vi
                 gst_amount=total_gst,
                 cgst_amount=cgst,
                 sgst_amount=sgst,
+                shipping_cost=shipping_cost,
+                shipping_method=shipping_method,
                 total=order_total,
                 shipping_name=ship_name,
                 shipping_phone=ship_phone,
@@ -576,7 +644,7 @@ class BulkQuoteRequestViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, vi
                 unit_price=quote.quoted_price_per_unit,
                 gst_percentage=gst_pct,
                 gst_amount=total_gst,
-                line_total=order_total,
+                line_total=lines_total,
             )
             append_history(order, Order.Status.PENDING_PAYMENT, f"Created from bulk quote #{quote.id}. Stock reserved.")
             

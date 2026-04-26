@@ -18,10 +18,21 @@ const statusLabel: Record<string, string> = {
   pending_payment: "Pending Payment",
   paid: "Confirmed",
   processing: "Processing",
+  ready_for_pickup: "Ready for Pickup",
   shipped: "In Transit",
   delivered: "Delivered",
   cancelled: "Cancelled",
 };
+
+function storePickupIntroMessage(orderStatus: string): string {
+  if (orderStatus === "ready_for_pickup") {
+    return "Ready for pickup — please collect your order at the address below (bring a valid ID and your order number).";
+  }
+  if (orderStatus === "delivered") {
+    return "This order has been collected. Thank you for visiting us.";
+  }
+  return "We will notify you when your order is ready to collect at the address below.";
+}
 
 const resolveImageUrl = (path: string | null | undefined) => {
   if (!path) return null;
@@ -115,6 +126,7 @@ export default function OrderDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showItemReviews, setShowItemReviews] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [journeyLedgerOpen, setJourneyLedgerOpen] = useState(false);
 
   const loadOrder = async () => {
     if (!id) return;
@@ -343,36 +355,104 @@ export default function OrderDetailPage() {
                    </div>
                 </div>
 
-                {/* 2. Tracking Timeline Card */}
+                {/* 2. Tracking Timeline Card (collapsed by default) */}
                 <div className="timeline-card shadow-sm">
-                   <h3 className="section-title-premium mb-4">Journey Ledger</h3>
-                   <div className="timeline-vertical">
-                      {(() => {
+                   <button
+                     type="button"
+                     className="ledger-toggle w-100 text-start border-0 bg-transparent p-0"
+                     onClick={() => setJourneyLedgerOpen((open) => !open)}
+                     aria-expanded={journeyLedgerOpen}
+                     aria-controls="journey-ledger-panel"
+                     id="journey-ledger-heading"
+                   >
+                     <h3 className="section-title-premium mb-0 d-flex justify-content-between align-items-center gap-2 w-100">
+                       <span>Journey Ledger</span>
+                       <span className="small text-secondary text-uppercase letter-spacing-1 flex-shrink-0" style={{ letterSpacing: "0.08em" }}>
+                         {journeyLedgerOpen ? "Hide" : "Show"}
+                       </span>
+                     </h3>
+                   </button>
+                   {journeyLedgerOpen ? (
+                     <div
+                       id="journey-ledger-panel"
+                       role="region"
+                       aria-labelledby="journey-ledger-heading"
+                       className="timeline-vertical mt-4"
+                     >
+                       {(() => {
                          const history = [...order.history].reverse();
                          return history.map((h, i) => (
-                           <div key={i} className={`timeline-step ${i === 0 ? 'active' : ''}`}>
-                              <div className="step-point"></div>
-                              {i < history.length - 1 && <div className="step-line"></div>}
-                              <div className="step-content">
-                                 <p className="status-text">{statusLabel[h.status] || h.status}</p>
-                                 <p className="timestamp-text">{new Date(h.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</p>
-                                 {h.note && <p className="note-text italic">{h.note}</p>}
-                              </div>
+                           <div key={i} className={`timeline-step ${i === 0 ? "active" : ""}`}>
+                             <div className="step-point"></div>
+                             {i < history.length - 1 && <div className="step-line"></div>}
+                             <div className="step-content">
+                               <p className="status-text">{statusLabel[h.status] || h.status}</p>
+                               <p className="timestamp-text">{new Date(h.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</p>
+                               {h.note && <p className="note-text italic">{h.note}</p>}
+                             </div>
                            </div>
                          ));
-                      })()}
-                   </div>
+                       })()}
+                     </div>
+                   ) : null}
                 </div>
 
                 {/* 3. Destination Card */}
                 <div className="address-card shadow-sm">
-                   <h3 className="section-title-premium mb-3">Delivery Destination</h3>
+                   <h3 className="section-title-premium mb-3">
+                     {order.shipping_method === "store_pickup" ? "Store pickup" : "Delivery Destination"}
+                   </h3>
+                   <p className="small text-muted mb-2">
+                      {(
+                        {
+                          store_pickup: storePickupIntroMessage(order.status),
+                          doorstep: "Doorstep delivery",
+                          custom_courier: "Custom courier — shipping was quoted and paid separately from this order total.",
+                        } as Record<string, string>
+                      )[order.shipping_method || "doorstep"] || "Doorstep delivery"}
+                      {order.shipping_cost && parseFloat(order.shipping_cost) > 0 ? (
+                        <span className="d-block mt-1">
+                          Shipping included in payment: ₹{parseFloat(order.shipping_cost).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      ) : null}
+                   </p>
                    <div className="destination-details">
                       <p className="name-recipient mb-1">{order.shipping_name}</p>
-                      <address className="mb-0 small text-secondary leading-relaxed font-medium">
-                         {order.shipping_address_line1}<br/>
-                         {order.shipping_city}, {order.shipping_state} {order.shipping_postal_code}
-                      </address>
+                      <p className="small text-secondary mb-1">Contact: {order.shipping_phone}</p>
+                      {order.shipping_method === "store_pickup" && order.pickup_at_store ? (
+                        <>
+                          <address className="mb-0 small text-secondary leading-relaxed font-medium">
+                            {order.pickup_at_store.line1}
+                            {order.pickup_at_store.line2 ? (
+                              <>
+                                <br />
+                                {order.pickup_at_store.line2}
+                              </>
+                            ) : null}
+                            <br />
+                            {order.pickup_at_store.city}, {order.pickup_at_store.state} {order.pickup_at_store.postal_code}
+                          </address>
+                          {order.pickup_at_store.map_url ? (
+                            <p className="mt-2 mb-0 small">
+                              <a href={order.pickup_at_store.map_url} target="_blank" rel="noopener noreferrer" className="text-store-navy fw-semibold">
+                                Open in Google Maps
+                              </a>
+                            </p>
+                          ) : null}
+                        </>
+                      ) : (
+                        <address className="mb-0 small text-secondary leading-relaxed font-medium">
+                          {order.shipping_address_line1}
+                          {order.shipping_address_line2 ? (
+                            <>
+                              <br />
+                              {order.shipping_address_line2}
+                            </>
+                          ) : null}
+                          <br />
+                          {order.shipping_city}, {order.shipping_state} {order.shipping_postal_code}
+                        </address>
+                      )}
                    </div>
                 </div>
 
@@ -426,6 +506,17 @@ export default function OrderDetailPage() {
         .order-main-card { padding: 0; }
         .order-main-card:hover { transform: translateY(-2px); box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1) !important; }
 
+        .ledger-toggle {
+          cursor: pointer;
+          color: inherit;
+          border-radius: 6px;
+        }
+        .ledger-toggle:hover .section-title-premium { color: var(--dark-navy); }
+        .ledger-toggle:focus-visible {
+          outline: 2px solid var(--accent-gold);
+          outline-offset: 2px;
+        }
+
         .card-header-boutique {
            background-color: #ffffff;
            padding: 1.25rem 1.5rem;
@@ -457,6 +548,7 @@ export default function OrderDetailPage() {
         .status-badge.delivered { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
         .status-badge.shipped { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
         .status-badge.paid, .status-badge.processing { background: #ecfdf5; color: #059669; }
+        .status-badge.ready_for_pickup { background: #d1fae5; color: #047857; border: 1px solid #6ee7b7; }
         .status-badge.cancelled { background: #fef2f2; color: #dc2626; }
 
         .badge-bespoke {

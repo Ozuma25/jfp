@@ -355,16 +355,8 @@ export default function CartPage() {
                      )}
                      
                      <div className="pt-4 space-y-2 border-t border-gray-50/50">
-                        <div className="flex justify-between text-neutral-400">
-                           <span>CGST (9%)</span>
-                           <span>₹ {cart.tax_data.cgst_amount}</span>
-                        </div>
-                        <div className="flex justify-between text-neutral-400">
-                           <span>SGST (9%)</span>
-                           <span>₹ {cart.tax_data.sgst_amount}</span>
-                        </div>
                         <div className="flex justify-between text-store-navy">
-                           <span>Total Tax</span>
+                           <span>GST</span>
                            <span>₹ {cart.tax_data.gst_amount}</span>
                         </div>
                      </div>

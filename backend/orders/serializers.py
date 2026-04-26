@@ -101,6 +101,7 @@ class OrderListSerializer(serializers.ModelSerializer):
 class OrderDetailSerializer(serializers.ModelSerializer):
     lines = OrderLineSerializer(many=True, read_only=True)
     history = OrderStatusHistorySerializer(many=True, read_only=True)
+    pickup_at_store = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -118,6 +119,12 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "shipping_city",
             "shipping_state",
             "shipping_postal_code",
+            "shipping_method",
+            "shipping_cost",
+            "pickup_at_store",
+            "is_business_order",
+            "billing_company_name",
+            "billing_gst_number",
             "razorpay_order_id",
             "admin_rejection_reason",
             "is_bulk",
@@ -130,17 +137,79 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "history",
         )
 
+    def get_pickup_at_store(self, obj: Order):
+        """Current store address from settings (not the order snapshot). Used for store pickup display."""
+        if obj.shipping_method != Order.ShippingMethod.STORE_PICKUP:
+            return None
+        from django.conf import settings as dj_settings
+
+        spa = getattr(dj_settings, "STORE_PICKUP_ADDRESS", {}) or {}
+        return {
+            "line1": spa.get("line1", ""),
+            "line2": spa.get("line2", ""),
+            "city": spa.get("city", ""),
+            "state": spa.get("state", ""),
+            "postal_code": spa.get("postal_code", ""),
+            "map_url": (getattr(dj_settings, "STORE_PICKUP_MAP_URL", "") or "").strip(),
+        }
+
 
 class CheckoutSerializer(serializers.Serializer):
+    shipping_method = serializers.ChoiceField(
+        choices=Order.ShippingMethod.choices,
+        default=Order.ShippingMethod.DOORSTEP,
+    )
     shipping_name = serializers.CharField(max_length=200)
     shipping_phone = serializers.CharField(max_length=20)
-    shipping_address_line1 = serializers.CharField(max_length=255)
+    shipping_address_line1 = serializers.CharField(
+        max_length=255, required=False, allow_blank=True
+    )
     shipping_address_line2 = serializers.CharField(
         max_length=255, required=False, allow_blank=True
     )
-    shipping_city = serializers.CharField(max_length=100)
-    shipping_state = serializers.CharField(max_length=100)
-    shipping_postal_code = serializers.CharField(max_length=20)
+    shipping_city = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    shipping_state = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    shipping_postal_code = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    is_business_order = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, data):
+        from django.conf import settings as dj_settings
+
+        method = data.get("shipping_method", Order.ShippingMethod.DOORSTEP)
+        pickup_addr = getattr(dj_settings, "STORE_PICKUP_ADDRESS", {}) or {}
+
+        if method == Order.ShippingMethod.STORE_PICKUP:
+            data["shipping_address_line1"] = (
+                (data.get("shipping_address_line1") or "").strip()
+                or pickup_addr.get("line1", "Store pickup")
+            )
+            data["shipping_address_line2"] = (data.get("shipping_address_line2") or "").strip() or pickup_addr.get(
+                "line2", ""
+            )
+            data["shipping_city"] = (
+                (data.get("shipping_city") or "").strip() or pickup_addr.get("city", "")
+            )
+            data["shipping_state"] = (
+                (data.get("shipping_state") or "").strip() or pickup_addr.get("state", "")
+            )
+            data["shipping_postal_code"] = (
+                (data.get("shipping_postal_code") or "").strip() or pickup_addr.get("postal_code", "")
+            )
+        else:
+            errors = {}
+            if not (data.get("shipping_address_line1") or "").strip():
+                errors["shipping_address_line1"] = "Required for delivery."
+            if not (data.get("shipping_city") or "").strip():
+                errors["shipping_city"] = "Required for delivery."
+            if not (data.get("shipping_state") or "").strip():
+                errors["shipping_state"] = "Required for delivery."
+            postal = (data.get("shipping_postal_code") or "").strip()
+            if len(postal) != 6 or not postal.isdigit():
+                errors["shipping_postal_code"] = "Enter a valid 6-digit PIN code."
+            if errors:
+                raise serializers.ValidationError(errors)
+            data["shipping_postal_code"] = postal
+        return data
 
 
 class RazorpayVerifySerializer(serializers.Serializer):

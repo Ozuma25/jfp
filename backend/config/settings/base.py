@@ -4,6 +4,7 @@ Loads `.env` from repo root (`E_com/.env`) or `backend/.env`.
 """
 import os
 from datetime import timedelta
+from decimal import Decimal
 from importlib import import_module
 from pathlib import Path
 
@@ -183,6 +184,27 @@ FRONTEND_URL = os.environ.get(
     "https://jfp-git-dev-ozuma25s-projects.vercel.app",
 )
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8000")
+
+# Checkout shipping (INR). Doorstep fee is added to order total; pickup and custom courier are ₹0 at checkout.
+DOORSTEP_SHIPPING_INR = Decimal(os.environ.get("DOORSTEP_SHIPPING_INR", "0"))
+STORE_PICKUP_ADDRESS = {
+    "line1": os.environ.get(
+        "STORE_PICKUP_LINE1",
+        "Jai Fancy Packs, 481/2, Tiru nager 1st Street, Selvapuram",
+    ),
+    "line2": os.environ.get(
+        "STORE_PICKUP_LINE2",
+        "via Ukkadam byepasss road, via sundakamuttur byepass road",
+    ),
+    "city": os.environ.get("STORE_PICKUP_CITY", "Coimbatore"),
+    "state": os.environ.get("STORE_PICKUP_STATE", "Tamil Nadu"),
+    "postal_code": os.environ.get("STORE_PICKUP_POSTAL_CODE", "641026"),
+}
+# Google Maps link for pickup (share link from Business Profile, or override in .env)
+STORE_PICKUP_MAP_URL = os.environ.get(
+    "STORE_PICKUP_MAP_URL",
+    "https://www.google.com/maps/search/?api=1&query=Jai+Fancy+Packs%2C+481%2F2%2C+Tiru+nager+1st+Street%2C+Selvapuram%2C+Coimbatore%2C+Tamil+Nadu+641026",
+)
 
 
 # --- Media: local (dev), Cloudinary, or S3 ---

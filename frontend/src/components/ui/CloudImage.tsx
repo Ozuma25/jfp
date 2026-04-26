@@ -8,7 +8,9 @@ type CloudImageProps = Omit<ImageProps, "src"> & {
 };
 
 export function CloudImage({ src, ...props }: CloudImageProps) {
-  const isCloudinary = src.includes("cloudinary.com") || src.startsWith("cld-");
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const isCloudinary =
+    (src.includes("cloudinary.com") || src.startsWith("cld-")) && !!cloudName;
 
   if (isCloudinary) {
     return (
