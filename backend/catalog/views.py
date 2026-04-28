@@ -1,6 +1,7 @@
 from django.db.models import Prefetch
 from rest_framework import viewsets
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
 from catalog.filters import ProductFilter
@@ -13,9 +14,11 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     lookup_field = "slug"
+    permission_classes = [AllowAny]
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [AllowAny]
     filterset_class = ProductFilter
     pagination_class = CatalogPagination
     lookup_field = "slug"
@@ -53,6 +56,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
 class SiteSettingsPublicView(APIView):
     """Expose default bulk threshold for storefront logic."""
+    permission_classes = [AllowAny]
 
     def get(self, request):
         row = SiteSettings.objects.first()
