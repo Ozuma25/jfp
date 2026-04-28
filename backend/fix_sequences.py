@@ -8,6 +8,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
 from django.db import connection
+from psycopg2 import sql
 
 QUERY = """
 SELECT
@@ -34,11 +35,10 @@ with connection.cursor() as cursor:
             skipped.append("%s: no sequence" % table_name)
             continue
         try:
-            sql = "SELECT SETVAL(%s, COALESCE(MAX(id), 1)) FROM %s" % (
-                "%s",
-                connection.ops.quote_name(table_name),
+            query = sql.SQL("SELECT SETVAL(%s, COALESCE(MAX(id), 1)) FROM {}").format(
+                sql.Identifier(table_name)
             )
-            cursor.execute(sql, [seq_name])
+            cursor.execute(query, [seq_name])
             val = cursor.fetchone()[0]
             fixed.append("  %-50s -> reset to %d" % (table_name, val))
         except Exception as e:

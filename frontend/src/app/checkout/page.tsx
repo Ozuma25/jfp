@@ -27,6 +27,7 @@ export default function CheckoutPage() {
   const { user, refreshUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const [err, setErr] = useState("");
+  const [banner, setBanner] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [scriptReady, setScriptReady] = useState(false);
   const [cart, setCart] = useState<CartData | null>(null);
@@ -411,6 +412,7 @@ export default function CheckoutPage() {
   async function handlePaymentRequest(e: React.FormEvent) {
     e.preventDefault();
     setErr("");
+    setBanner(null);
 
     // Guard: never allow checkout with an empty cart
     if (!cart || cart.items.length === 0) {
@@ -448,6 +450,16 @@ export default function CheckoutPage() {
       }
       openRazorpay(data as any);
     } catch (e) {
+      const anyErr = e as any;
+      if (anyErr?.code === "out_of_stock") {
+        setBanner(
+          anyErr?.message ||
+            "One or more items just went out of stock while you were checking out. Please review your cart and try again."
+        );
+        // Refresh cart to reflect latest stock + quantities
+        fetchCart().then(setCart).catch(console.error);
+        return;
+      }
       setErr(e instanceof Error ? e.message : "Checkout failed.");
     } finally {
       setBusy(false);
@@ -495,6 +507,21 @@ export default function CheckoutPage() {
   return (
     <div className="bg-gray-50 min-h-screen pb-20">
       <div className="mx-auto max-w-6xl px-4 py-10">
+
+        {banner && (
+          <div className="mb-6 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm leading-5">{banner}</p>
+              <button
+                type="button"
+                onClick={() => setBanner(null)}
+                className="text-xs font-semibold underline underline-offset-4 hover:opacity-80"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* Amazon-style Checkout Header */}
         <div className="mb-8 hidden md:block">

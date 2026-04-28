@@ -46,6 +46,8 @@ def send_email_sync(
         return
 
     url = "https://api.resend.com/emails"
+    if not url.startswith("https://api.resend.com/"):
+        raise RuntimeError("Unexpected Resend API URL")
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -73,7 +75,7 @@ def send_email_sync(
     try:
         logger.info(f"Sending email over HTTP [{email_type}]: '{subject}' → {recipient_list}")
         # 10s timeout prevents the server from hanging indefinitely
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310
             res_data = response.read()
             logger.info(f"Resend accepted email: {res_data}")
     except Exception as exc:

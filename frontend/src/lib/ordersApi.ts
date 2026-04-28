@@ -124,7 +124,21 @@ export async function checkoutRequest(body: ShippingPayload) {
     method: "POST",
     body: JSON.stringify(body),
   });
-  if (!r.ok) throw new Error(r.text);
+  if (!r.ok) {
+    let msg = r.text;
+    let code: string | null = null;
+    try {
+      const parsed = JSON.parse(r.text) as any;
+      if (parsed?.detail) msg = String(parsed.detail);
+      if (parsed?.code) code = String(parsed.code);
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(msg) as any;
+    if (code) err.code = code;
+    err.status = r.status;
+    throw err;
+  }
   return r.data;
 }
 

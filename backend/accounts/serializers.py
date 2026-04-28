@@ -10,6 +10,9 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from accounts.models import SavedAddress, SavedPaymentMethod, UserProfile
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -165,7 +168,7 @@ class RegisterSerializer(serializers.ModelSerializer):
                 fail_silently=True,  # Prevent crashing if SMTP isn't setup yet
             )
         except Exception:
-            pass
+            logger.exception("Failed to send verification email (ignored).")
 
         return user
 

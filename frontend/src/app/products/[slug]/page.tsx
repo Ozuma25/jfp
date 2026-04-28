@@ -99,6 +99,13 @@ export default async function ProductDetailPage({ params }: Props) {
         ? [product.image]
         : [];
 
+  const safeJsonLd = (value: unknown) =>
+    JSON.stringify(value)
+      // Prevent closing the script tag via user-controlled content like "</script>"
+      .replace(/</g, "\\u003c")
+      .replace(/>/g, "\\u003e")
+      .replace(/&/g, "\\u0026");
+
   return (
     <div className="bg-white min-h-screen pb-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 md:py-10">
@@ -116,7 +123,7 @@ export default async function ProductDetailPage({ params }: Props) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: safeJsonLd({
               "@context": "https://schema.org/",
               "@type": "Product",
               "name": product.title,

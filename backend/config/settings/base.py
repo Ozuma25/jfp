@@ -21,8 +21,14 @@ load_dotenv(REPO_ROOT / ".env")
 # Local overrides (e.g. SQLite in backend/.env when Docker Postgres is not used)
 load_dotenv(BACKEND_DIR / ".env", override=True)
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-unsafe-key-change-me")
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") in ("1", "true", "True", "yes")
+_secret_key = (os.environ.get("DJANGO_SECRET_KEY") or "").strip()
+if not _secret_key:
+    if DEBUG:
+        _secret_key = "dev-only-unsafe-key-change-me"
+    else:
+        raise RuntimeError("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG=0")
+SECRET_KEY = _secret_key
 
 _raw_hosts = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1")
 ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(",") if h.strip()]
@@ -141,7 +147,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
@@ -155,6 +161,48 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
 }
+
+# --- Security (enable in production) ---
+# Controlled by env so local dev stays simple.
+DJANGO_SECURE = os.environ.get("DJANGO_SECURE", "0") in ("1", "true", "True", "yes")
+SECURE_ENABLED = DJANGO_SECURE or (not DEBUG)
+
+if SECURE_ENABLED:
+    # Behind proxies (Render / Nginx / etc): allow reading scheme from forwarded header.
+    if os.environ.get("DJANGO_USE_X_FORWARDED_PROTO", "1") in ("1", "true", "True", "yes"):
+        SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+    SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "1") in (
+        "1",
+        "true",
+        "True",
+        "yes",
+    )
+
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = os.environ.get("DJANGO_SESSION_COOKIE_SAMESITE", "Lax")
+    CSRF_COOKIE_SAMESITE = os.environ.get("DJANGO_CSRF_COOKIE_SAMESITE", "Lax")
+
+    # Recommended baseline headers
+    X_FRAME_OPTIONS = os.environ.get("DJANGO_X_FRAME_OPTIONS", "DENY")
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = os.environ.get("DJANGO_SECURE_REFERRER_POLICY", "same-origin")
+
+    # HSTS (set to 0 to disable if you don't want preload)
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "1") in (
+        "1",
+        "true",
+        "True",
+        "yes",
+    )
+    SECURE_HSTS_PRELOAD = os.environ.get("DJANGO_SECURE_HSTS_PRELOAD", "0") in (
+        "1",
+        "true",
+        "True",
+        "yes",
+    )
 
 # --- Email (Resend SMTP) ---
 EMAIL_BACKEND = os.environ.get(

@@ -185,7 +185,10 @@ class CheckoutView(APIView):
                     
                     if product.stock < ld["quantity"]:
                         raise serializers.ValidationError({
-                            "detail": f"Insufficient stock for {product.name}. Only {product.stock} left."
+                            "detail": f"Insufficient stock for {product.name}. Only {product.stock} left.",
+                            "code": "out_of_stock",
+                            "available_stock": product.stock,
+                            "product_id": product.id,
                         })
                     
                     product.stock -= ld["quantity"]
