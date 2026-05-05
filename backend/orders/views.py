@@ -236,7 +236,22 @@ class CheckoutView(APIView):
                 except Exception:
                     is_company_shipping = False
 
-                if not address_exists and not is_company_shipping:
+                # Never save the store pickup address as a user address
+                is_store_pickup = str(shipping_method) == "store_pickup"
+                is_store_pickup_address = False
+                try:
+                    store = getattr(settings, "STORE_PICKUP_ADDRESS", {}) or {}
+                    store_line1 = (store.get("line1", "") or "").strip().lower()
+                    store_pc = (store.get("postal_code", "") or "").strip().lower()
+                    ship_line1 = (ship.get("shipping_address_line1", "") or "").strip().lower()
+                    ship_pc = (ship.get("shipping_postal_code", "") or "").strip().lower()
+                    if store_line1 and ship_line1 and ship_line1 == store_line1:
+                        if not store_pc or (store_pc and ship_pc and ship_pc == store_pc):
+                            is_store_pickup_address = True
+                except Exception:
+                    is_store_pickup_address = False
+
+                if not address_exists and not is_company_shipping and not is_store_pickup and not is_store_pickup_address:
                     SavedAddress.objects.create(
                         user=request.user,
                         name="Recent Checkout",

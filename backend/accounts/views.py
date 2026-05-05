@@ -217,7 +217,18 @@ class SavedAddressViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return SavedAddress.objects.filter(user=self.request.user)
+        qs = SavedAddress.objects.filter(user=self.request.user)
+
+        # Never show the store pickup address as a user-saved address
+        store = getattr(settings, "STORE_PICKUP_ADDRESS", {}) or {}
+        store_line1 = (store.get("line1", "") or "").strip()
+        store_pc = (store.get("postal_code", "") or "").strip()
+        if store_line1 and store_pc:
+            qs = qs.exclude(address_line1__iexact=store_line1, postal_code__iexact=store_pc)
+        elif store_line1:
+            qs = qs.exclude(address_line1__iexact=store_line1)
+
+        return qs
 
     def perform_create(self, serializer):
         if serializer.validated_data.get("is_default"):

@@ -1,6 +1,12 @@
+from decimal import Decimal, ROUND_HALF_UP
+
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
+
+
+def _quantize_money_2dp(value: Decimal) -> Decimal:
+    return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _ensure_unique_slug(
@@ -164,6 +170,9 @@ class Product(models.Model):
         self.sku = f"JFP-{raw}"[:64]
 
     def save(self, *args, **kwargs):
+        self.price = _quantize_money_2dp(self.price)
+        if self.compare_at_price is not None:
+            self.compare_at_price = _quantize_money_2dp(self.compare_at_price)
         self._normalize_sku()
         _ensure_unique_slug(
             self,
@@ -248,6 +257,11 @@ class ProductVariant(models.Model):
 
     class Meta:
         ordering = ["sort_order", "id"]
+
+    def save(self, *args, **kwargs):
+        if self.price_override is not None:
+            self.price_override = _quantize_money_2dp(self.price_override)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         parts = [p for p in [self.color, self.size] if p]

@@ -57,7 +57,9 @@ export function clearGuestCart() {
 
 function parsePrice(priceStr: string | null | undefined): number {
   if (!priceStr) return 0;
-  const clean = priceStr.toLowerCase().replace(/[₹, \s, rs., /]/g, "");
+  // Keep digits and decimal only — do not strip "." (an older regex treated "." as
+  // part of "rs." and removed every decimal point, turning 337.50 into 33750).
+  const clean = priceStr.replace(/[^0-9.]/g, "");
   const num = parseFloat(clean);
   return isNaN(num) ? 0 : num;
 }

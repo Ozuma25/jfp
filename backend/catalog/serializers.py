@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django.utils import timezone
 from rest_framework import serializers
@@ -6,8 +6,23 @@ from rest_framework import serializers
 from catalog.models import Category, Product, ProductVariant, SiteSettings
 
 
-def _money_inr(value: Decimal) -> str:
-    return f"₹ {value:,.0f}" if value == value.to_integral() else f"₹ {value:,.2f}"
+def _money_inr(value) -> str:
+    """Format catalog money for API strings. Uses Decimal end-to-end (no float)."""
+    if value is None:
+        return "₹ 0"
+    try:
+        d = value if isinstance(value, Decimal) else Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return "₹ 0"
+    d = d.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    sign_prefix = "-" if d < 0 else ""
+    d_abs = abs(d)
+    whole, frac = divmod(d_abs, Decimal(1))
+    whole_fmt = f"{int(whole):,d}"
+    cents = int((frac * 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+    if cents == 0:
+        return f"{sign_prefix}₹ {whole_fmt}"
+    return f"{sign_prefix}₹ {whole_fmt}.{cents:02d}"
 
 
 class CategorySerializer(serializers.ModelSerializer):
