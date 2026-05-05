@@ -46,10 +46,48 @@ class ProductAdminForm(forms.ModelForm):
             "height_cm": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
             "width_cm": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
             "weight_g": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
-            "gst_percentage": forms.NumberInput(
-                attrs={"step": "0.01", "min": "0", "max": "100"}
-            ),
         }
+
+    _money_widget = forms.TextInput(
+        attrs={
+            "class": "vTextField",
+            "inputmode": "decimal",
+            "autocomplete": "off",
+        }
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Use text fields for money — avoids <input type="number"> mouse-wheel / step nudging
+        # (e.g. 337.00 drifting to 336.98 while scrolling the page).
+        for name in ("price", "compare_at_price", "gst_percentage"):
+            if name in self.fields:
+                self.fields[name].widget = self._money_widget
+
+    def _parse_inr_amount(self, field_name: str, *, required: bool, label: str):
+        raw = (self.data.get(self.add_prefix(field_name)) or "").strip()
+        if raw == "":
+            if required:
+                raise ValidationError(f"{label} is required.")
+            return None
+        normalized = raw.replace(",", "")
+        try:
+            return Decimal(normalized).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        except (InvalidOperation, ValueError):
+            raise ValidationError(f"Enter a valid amount for {label.lower()}.")
+
+    def clean_price(self):
+        d = self._parse_inr_amount("price", required=True, label="Price")
+        assert d is not None
+        if d < 0:
+            raise ValidationError("Price cannot be negative.")
+        return d
+
+    def clean_compare_at_price(self):
+        d = self._parse_inr_amount("compare_at_price", required=False, label="Compare-at price")
+        if d is not None and d < 0:
+            raise ValidationError("Compare-at price cannot be negative.")
+        return d
 
     def _clean_decimal_2dp(self, field: str):
         v = self.cleaned_data.get(field)
@@ -73,11 +111,12 @@ class ProductAdminForm(forms.ModelForm):
         return self._clean_decimal_2dp("weight_g")
 
     def clean_gst_percentage(self):
-        v = self.cleaned_data.get("gst_percentage")
-        if v is None:
-            return None
+        raw = (self.data.get(self.add_prefix("gst_percentage")) or "").strip()
+        if raw == "":
+            raise ValidationError("GST percentage is required.")
+        normalized = raw.replace(",", "")
         try:
-            d = Decimal(str(v)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            d = Decimal(normalized).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         except (InvalidOperation, ValueError):
             raise ValidationError("Enter a valid GST percentage.")
         if d < 0 or d > 100:
@@ -86,6 +125,14 @@ class ProductAdminForm(forms.ModelForm):
 
 
 class ProductVariantAdminForm(forms.ModelForm):
+    _money_widget = forms.TextInput(
+        attrs={
+            "class": "vTextField",
+            "inputmode": "decimal",
+            "autocomplete": "off",
+        }
+    )
+
     class Meta:
         model = ProductVariant
         fields = "__all__"
@@ -94,6 +141,24 @@ class ProductVariantAdminForm(forms.ModelForm):
             "width_cm": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
             "weight_g": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "price_override" in self.fields:
+            self.fields["price_override"].widget = self._money_widget
+
+    def clean_price_override(self):
+        raw = (self.data.get(self.add_prefix("price_override")) or "").strip()
+        if raw == "":
+            return None
+        normalized = raw.replace(",", "")
+        try:
+            d = Decimal(normalized).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        except (InvalidOperation, ValueError):
+            raise ValidationError("Enter a valid price override amount.")
+        if d < 0:
+            raise ValidationError("Price override cannot be negative.")
+        return d
 
     def _clean_decimal_2dp(self, field: str):
         v = self.cleaned_data.get(field)

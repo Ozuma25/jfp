@@ -170,8 +170,12 @@ class Product(models.Model):
         self.sku = f"JFP-{raw}"[:64]
 
     def save(self, *args, **kwargs):
-        self.price = _quantize_money_2dp(self.price)
-        if self.compare_at_price is not None:
+        update_fields = kwargs.get("update_fields")
+        touch_price = update_fields is None or "price" in update_fields
+        touch_compare = update_fields is None or "compare_at_price" in update_fields
+        if touch_price:
+            self.price = _quantize_money_2dp(self.price)
+        if touch_compare and self.compare_at_price is not None:
             self.compare_at_price = _quantize_money_2dp(self.compare_at_price)
         self._normalize_sku()
         _ensure_unique_slug(
@@ -259,8 +263,10 @@ class ProductVariant(models.Model):
         ordering = ["sort_order", "id"]
 
     def save(self, *args, **kwargs):
-        if self.price_override is not None:
-            self.price_override = _quantize_money_2dp(self.price_override)
+        update_fields = kwargs.get("update_fields")
+        if update_fields is None or "price_override" in update_fields:
+            if self.price_override is not None:
+                self.price_override = _quantize_money_2dp(self.price_override)
         super().save(*args, **kwargs)
 
     def __str__(self):
