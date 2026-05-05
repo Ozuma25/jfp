@@ -250,5 +250,12 @@ class ProductVariantAdmin(admin.ModelAdmin):
 
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
+    fields = (
+        "default_bulk_threshold",
+        "enable_store_pickup",
+        "enable_doorstep_delivery",
+        "enable_custom_courier",
+    )
+
     def has_add_permission(self, request):
         return not SiteSettings.objects.exists()

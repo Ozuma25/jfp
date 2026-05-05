@@ -45,6 +45,8 @@ class ShippingInfoView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        from catalog.models import SiteSettings
+        row = SiteSettings.objects.first()
         pickup = getattr(settings, "STORE_PICKUP_ADDRESS", {}) or {}
         fee = getattr(settings, "DOORSTEP_SHIPPING_INR", Decimal("0"))
         fee = Decimal(fee).quantize(Decimal("0.01"))
@@ -52,6 +54,11 @@ class ShippingInfoView(APIView):
         return Response(
             {
                 "doorstep_fee_inr": str(fee),
+                "shipping_methods": {
+                    "store_pickup": bool(getattr(row, "enable_store_pickup", True)) if row else True,
+                    "doorstep": bool(getattr(row, "enable_doorstep_delivery", False)) if row else False,
+                    "custom_courier": bool(getattr(row, "enable_custom_courier", False)) if row else False,
+                },
                 "store_pickup": {
                     "line1": pickup.get("line1", ""),
                     "line2": pickup.get("line2", ""),
@@ -95,6 +102,20 @@ class CheckoutView(APIView):
         is_business_order = bool(validated.pop("is_business_order", False))
         shipping_method = validated.pop("shipping_method", Order.ShippingMethod.DOORSTEP)
         ship = validated
+
+        # Gate shipping methods via SiteSettings toggles (admin-controlled)
+        from catalog.models import SiteSettings
+        row = SiteSettings.objects.first()
+        enabled = {
+            Order.ShippingMethod.STORE_PICKUP: bool(getattr(row, "enable_store_pickup", True)) if row else True,
+            Order.ShippingMethod.DOORSTEP: bool(getattr(row, "enable_doorstep_delivery", False)) if row else False,
+            Order.ShippingMethod.CUSTOM_COURIER: bool(getattr(row, "enable_custom_courier", False)) if row else False,
+        }
+        if not enabled.get(shipping_method, False):
+            return Response(
+                {"detail": "This shipping method is currently unavailable."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         subtotal = Decimal("0")
         for item in items:

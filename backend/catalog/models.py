@@ -47,6 +47,19 @@ class SiteSettings(models.Model):
         help_text="Used when Product.bulk_threshold is empty.",
     )
 
+    enable_store_pickup = models.BooleanField(
+        default=True,
+        help_text="Allow customers to choose direct store pickup at checkout.",
+    )
+    enable_doorstep_delivery = models.BooleanField(
+        default=False,
+        help_text="Allow customers to choose doorstep delivery at checkout.",
+    )
+    enable_custom_courier = models.BooleanField(
+        default=False,
+        help_text="Allow customers to choose custom courier service at checkout.",
+    )
+
     class Meta:
         verbose_name_plural = "Site settings"
 

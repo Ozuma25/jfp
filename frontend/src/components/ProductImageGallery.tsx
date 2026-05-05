@@ -27,6 +27,11 @@ export function ProductImageGallery({ images, productTitle }: Props) {
   const [index, setIndex] = useState(0);
   const regionId = useId();
   const liveRef = useRef<HTMLDivElement>(null);
+  const touchRef = useRef<{
+    active: boolean;
+    startX: number;
+    startY: number;
+  }>({ active: false, startX: 0, startY: 0 });
 
   const safeIndex = n === 0 ? 0 : Math.min(index, n - 1);
   const current = n > 0 ? images[safeIndex] : null;
@@ -90,7 +95,26 @@ export function ProductImageGallery({ images, productTitle }: Props) {
         aria-label={label}
         tabIndex={0}
         onKeyDown={onKeyDown}
-        className="group relative aspect-square overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-xl outline-none"
+        className="group relative aspect-square overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-xl outline-none select-none"
+        onTouchStart={(e) => {
+          if (n <= 1) return;
+          const t = e.touches[0];
+          if (!t) return;
+          touchRef.current = { active: true, startX: t.clientX, startY: t.clientY };
+        }}
+        onTouchEnd={(e) => {
+          if (n <= 1) return;
+          const st = touchRef.current;
+          touchRef.current.active = false;
+          const t = e.changedTouches[0];
+          if (!t) return;
+          const dx = t.clientX - st.startX;
+          const dy = t.clientY - st.startY;
+          // Only treat as swipe when horizontal intent is clear.
+          if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+          if (dx < 0) go(1);
+          else go(-1);
+        }}
       >
         <div ref={liveRef} className="sr-only" aria-live="polite" />
         {current && (
@@ -107,20 +131,22 @@ export function ProductImageGallery({ images, productTitle }: Props) {
           <>
             <button
               type="button"
-              className="absolute left-6 top-1/2 z-10 -translate-y-1/2 p-3 text-white/40 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+              aria-label="Previous image"
+              className="absolute left-3 md:left-6 top-1/2 z-10 -translate-y-1/2 p-3 text-white/90 hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 drop-shadow-[0_4px_12px_rgba(0,0,0,0.45)]"
               onClick={() => go(-1)}
             >
               <IconChevronLeft className="h-10 w-10" />
             </button>
             <button
               type="button"
-              className="absolute right-6 top-1/2 z-10 -translate-y-1/2 p-3 text-white/40 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+              aria-label="Next image"
+              className="absolute right-3 md:right-6 top-1/2 z-10 -translate-y-1/2 p-3 text-white/90 hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 drop-shadow-[0_4px_12px_rgba(0,0,0,0.45)]"
               onClick={() => go(1)}
             >
               <IconChevronRight className="h-10 w-10" />
             </button>
 
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-2">
+            <div className="absolute bottom-4 md:bottom-10 left-1/2 -translate-x-1/2 flex gap-2 rounded-full bg-black/25 px-3 py-2 backdrop-blur-sm">
               {images.map((_, i) => (
                 <div key={i} className={`h-1 transition-all duration-300 ${i === safeIndex ? 'w-8 bg-store-button' : 'w-2 bg-white/40'}`} />
               ))}

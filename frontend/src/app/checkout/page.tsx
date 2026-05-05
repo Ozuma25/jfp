@@ -137,7 +137,21 @@ export default function CheckoutPage() {
   };
 
   useEffect(() => {
-    fetchShippingInfo().then(setShippingInfo).catch(console.error);
+    fetchShippingInfo()
+      .then((info) => {
+        setShippingInfo(info);
+        const flags = info.shipping_methods;
+        if (flags) {
+          const firstEnabled: ShippingMethodId | null =
+            (flags.store_pickup ? "store_pickup" : null) ??
+            (flags.doorstep ? "doorstep" : null) ??
+            (flags.custom_courier ? "custom_courier" : null);
+          if (firstEnabled && shippingMethod !== firstEnabled && !flags[shippingMethod]) {
+            setShippingMethod(firstEnabled);
+          }
+        }
+      })
+      .catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -482,7 +496,7 @@ export default function CheckoutPage() {
   const shippingChargeNum = shippingMethod === "doorstep" ? doorstepFeeNum : 0;
   const estimatedOrderTotal = (cartTotalNum + shippingChargeNum).toFixed(2);
 
-  const methodOptions: { id: ShippingMethodId; title: string; description: string }[] = [
+  const methodOptionsAll: { id: ShippingMethodId; title: string; description: string }[] = [
     {
       id: "store_pickup",
       title: "Direct store pickup",
@@ -503,6 +517,13 @@ export default function CheckoutPage() {
         "We arrange transport with your courier. Shipping cost will be quoted separately — you pay the courier fee outside this checkout.",
     },
   ];
+  const methodFlags = shippingInfo?.shipping_methods ?? {
+    store_pickup: true,
+    doorstep: true,
+    custom_courier: true,
+  };
+  const methodOptions = methodOptionsAll.filter((o) => (methodFlags as any)[o.id] !== false);
+  const isStorePickup = shippingMethod === "store_pickup";
 
   return (
     <div className="bg-gray-50 min-h-screen pb-20">
@@ -654,7 +675,76 @@ export default function CheckoutPage() {
                         </form>
                     )}
 
-                    {addressOptions.length > 0 && !useNewAddress ? (
+                    {/* For store pickup: only collect name + phone; show store address read-only */}
+                    {isStorePickup && shippingInfo ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          setErr("");
+                          if (!shipping_name.trim()) {
+                            setErr("Please enter purchaser name.");
+                            return;
+                          }
+                          const cleanPhone = shipping_phone.replace(/\D/g, "");
+                          if (cleanPhone.length !== 10) {
+                            setErr("Mobile number must be exactly 10 digits.");
+                            return;
+                          }
+                          setShippingName(shipping_name.trim());
+                          setShippingPhone(cleanPhone);
+                          applyStorePickupFields(shippingInfo);
+                          setStep(2);
+                        }}
+                        className="space-y-4 max-w-lg"
+                      >
+                        {err && <div className="p-3 mb-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded">{err}</div>}
+                        <div>
+                          <label className="text-[13px] font-bold text-gray-900">Purchaser name</label>
+                          <input
+                            required
+                            value={shipping_name}
+                            onChange={(e) => setShippingName(e.target.value)}
+                            className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-store-yellow focus:ring-1 focus:ring-store-yellow focus:outline-none shadow-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[13px] font-bold text-gray-900">Mobile number</label>
+                          <input
+                            required
+                            type="tel"
+                            maxLength={10}
+                            value={shipping_phone}
+                            onChange={(e) => setShippingPhone(e.target.value.replace(/\D/g, ""))}
+                            className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-store-yellow focus:ring-1 focus:ring-store-yellow focus:outline-none shadow-sm"
+                          />
+                        </div>
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                          <p className="text-[12px] font-bold text-gray-900 mb-2 uppercase tracking-widest">Pickup address</p>
+                          <p className="text-[13px] text-gray-800">{shippingInfo.store_pickup.line1}</p>
+                          {shippingInfo.store_pickup.line2 ? (
+                            <p className="text-[13px] text-gray-800">{shippingInfo.store_pickup.line2}</p>
+                          ) : null}
+                          <p className="text-[13px] text-gray-800">
+                            {shippingInfo.store_pickup.city}, {shippingInfo.store_pickup.state} {shippingInfo.store_pickup.postal_code}
+                          </p>
+                          {shippingInfo.store_pickup_map_url ? (
+                            <a
+                              href={shippingInfo.store_pickup_map_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-block mt-2 text-store-link hover:underline text-sm font-semibold"
+                            >
+                              View on map
+                            </a>
+                          ) : null}
+                        </div>
+                        <div className="pt-2">
+                          <button type="submit" className="bg-[#F0C75E] hover:bg-[#D4AF37] text-black font-semibold text-sm px-6 py-2.5 rounded-lg shadow-sm w-full md:w-auto transition-colors">
+                            Continue
+                          </button>
+                        </div>
+                      </form>
+                    ) : addressOptions.length > 0 && !useNewAddress ? (
                       <div>
                         <div className="space-y-3 mb-6">
                            {addressOptions.map(addr => {

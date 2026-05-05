@@ -101,6 +101,11 @@ export type ShippingPayload = {
 
 export type ShippingInfo = {
   doorstep_fee_inr: string;
+  shipping_methods?: {
+    store_pickup: boolean;
+    doorstep: boolean;
+    custom_courier: boolean;
+  };
   store_pickup: {
     line1: string;
     line2: string;
