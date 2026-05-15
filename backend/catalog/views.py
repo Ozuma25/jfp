@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
-from catalog.filters import ProductFilter
+from catalog.filters import ProductFilter, with_customer_price
 from catalog.models import Category, Product, ProductImage, SiteSettings
 from catalog.pagination import CatalogPagination
 from catalog.serializers import CategorySerializer, ProductDetailSerializer, ProductListSerializer
@@ -35,7 +35,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             )
         )
         ordering = self.request.query_params.get("ordering", "")
-        if ordering in ("created_at", "-created_at", "price", "-price", "name", "-name"):
+        if ordering in ("price", "-price"):
+            direction = "-" if ordering.startswith("-") else ""
+            qs = with_customer_price(qs).order_by(f"{direction}customer_price")
+        elif ordering in ("created_at", "-created_at", "name", "-name"):
             qs = qs.order_by(ordering)
         elif ordering == "new":
             qs = qs.order_by("-created_at")

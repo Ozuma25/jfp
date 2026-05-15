@@ -86,13 +86,17 @@ class CheckoutView(APIView):
         cart = Cart.objects.filter(user=request.user).first()
         if not cart:
             return Response({"detail": "Cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
-        items = list(cart.items.select_related("product").all())
+        items = list(cart.items.select_related("product", "variant").all())
         if not items:
             return Response({"detail": "Cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
 
         for item in items:
             ser = CartItemWriteSerializer(
-                data={"product_slug": item.product.slug, "quantity": item.quantity}
+                data={
+                    "product_slug": item.product.slug,
+                    "quantity": item.quantity,
+                    "variant_id": item.variant_id,
+                }
             )
             ser.is_valid(raise_exception=True)
 
@@ -119,10 +123,10 @@ class CheckoutView(APIView):
 
         subtotal = Decimal("0")
         for item in items:
-            subtotal += item.product.price * Decimal(item.quantity)
+            subtotal += item.effective_price * Decimal(item.quantity)
         subtotal = subtotal.quantize(Decimal("0.01"))
 
-        # --- Coupon & Tax Calculation ---
+        # --- Coupon calculation. Product prices are GST-inclusive MRP values. ---
         discount_amount = Decimal("0.00")
         coupon = cart.coupon
         if coupon:
@@ -131,26 +135,31 @@ class CheckoutView(APIView):
             else:
                 coupon = None
         
-        # We must calculate GST line-by-line using taxable value (post-proportional discount)
+        # Record the GST component already included in the MRP; do not add it again.
         total_gst = Decimal("0.00")
         line_data = []
         for item in items:
-            ratio = (Decimal(item.product.price) * Decimal(item.quantity)) / subtotal if subtotal > 0 else Decimal(0)
+            line_subtotal = (Decimal(item.effective_price) * Decimal(item.quantity)).quantize(Decimal("0.01"))
+            ratio = line_subtotal / subtotal if subtotal > 0 else Decimal(0)
             line_disc = (discount_amount * ratio).quantize(Decimal("0.01"))
-            line_subtotal = (Decimal(item.product.price) * Decimal(item.quantity)).quantize(Decimal("0.01"))
-            taxable_value = line_subtotal - line_disc
+            line_total = max(line_subtotal - line_disc, Decimal("0.00")).quantize(Decimal("0.01"))
             
             rate = getattr(item.product, "gst_percentage", Decimal("18.00"))
-            pst_gst = (taxable_value * rate / Decimal("100")).quantize(Decimal("0.01"))
-            total_gst += pst_gst
+            rate = Decimal(str(rate))
+            included_gst = (
+                (line_total * rate / (Decimal("100") + rate)).quantize(Decimal("0.01"))
+                if rate > 0
+                else Decimal("0.00")
+            )
+            total_gst += included_gst
             
             line_data.append({
                 "product": item.product,
                 "quantity": item.quantity,
-                "unit_price": item.product.price,
+                "unit_price": item.effective_price,
                 "gst_percentage": rate,
-                "gst_amount": pst_gst,
-                "line_total": taxable_value + pst_gst,
+                "gst_amount": included_gst,
+                "line_total": line_total,
                 "custom_design_file": item.custom_design_file,
             })
 
@@ -159,7 +168,7 @@ class CheckoutView(APIView):
         else:
             shipping_cost = Decimal("0")
         shipping_cost = Decimal(shipping_cost).quantize(Decimal("0.01"))
-        order_total = max(subtotal - discount_amount + total_gst + shipping_cost, Decimal("0.01"))
+        order_total = max(subtotal - discount_amount + shipping_cost, Decimal("0.01"))
         cgst = (total_gst / Decimal("2")).quantize(Decimal("0.01"))
         sgst = total_gst - cgst
 
@@ -291,7 +300,7 @@ class CheckoutView(APIView):
                     admin_email = getattr(settings, "ADMINS_EMAIL", None) or getattr(settings, "DEFAULT_FROM_EMAIL", "")
                     if admin_email:
                         lines_summary = "\n".join(
-                            f"  – {item.product.name} × {item.quantity} (₹{item.product.price})"
+                            f"  – {item.product.name} × {item.quantity} (₹{item.effective_price})"
                             for item in items if item.custom_design_file
                         )
                         admin_subject = f"[JFP] Bespoke Order #{order.id} — Design Review Required"
@@ -639,12 +648,16 @@ class BulkQuoteRequestViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, vi
 
             subtotal = (Decimal(quote.quantity) * quote.quoted_price_per_unit).quantize(Decimal("0.01"))
             gst_pct = Decimal(str(product.gst_percentage or 18))
-            total_gst = (subtotal * gst_pct / Decimal("100")).quantize(Decimal("0.01"))
+            total_gst = (
+                (subtotal * gst_pct / (Decimal("100") + gst_pct)).quantize(Decimal("0.01"))
+                if gst_pct > 0
+                else Decimal("0.00")
+            )
             cgst = (total_gst / Decimal("2")).quantize(Decimal("0.01"))
             sgst = (total_gst - cgst)
             shipping_method = Order.ShippingMethod.DOORSTEP
             shipping_cost = Decimal(getattr(settings, "DOORSTEP_SHIPPING_INR", Decimal("0"))).quantize(Decimal("0.01"))
-            lines_total = (subtotal + total_gst).quantize(Decimal("0.01"))
+            lines_total = subtotal
             order_total = (lines_total + shipping_cost).quantize(Decimal("0.01"))
 
             addr = SavedAddress.objects.filter(user=request.user, is_default=True).first() or \
@@ -738,4 +751,3 @@ class OrderReceiptDownloadView(APIView):
                 {"detail": f"Generation failed: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-

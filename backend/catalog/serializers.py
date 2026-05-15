@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from catalog.models import Category, Product, ProductVariant, SiteSettings
+from catalog.utils import gst_inclusive_price
 
 
 def _money_inr(value) -> str:
@@ -78,7 +79,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         return out
 
     def get_price(self, obj: Product) -> str:
-        return _money_inr(obj.price)
+        return _money_inr(gst_inclusive_price(obj.price, obj.gst_percentage))
 
     def get_image(self, obj: Product) -> str | None:
         img = obj.images.first()
@@ -146,7 +147,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
     def get_price(self, obj: ProductVariant) -> str | None:
         if obj.price_override is not None:
-            return _money_inr(obj.price_override)
+            return _money_inr(gst_inclusive_price(obj.price_override, obj.product.gst_percentage))
         return None
 
 
@@ -191,4 +192,4 @@ class ProductDetailSerializer(ProductListSerializer):
     def get_compare_at_price_display(self, obj: Product) -> str | None:
         if not obj.compare_at_price:
             return None
-        return _money_inr(obj.compare_at_price)
+        return _money_inr(gst_inclusive_price(obj.compare_at_price, obj.gst_percentage))

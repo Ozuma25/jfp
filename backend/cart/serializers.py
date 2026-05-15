@@ -129,7 +129,7 @@ class CartSerializer(serializers.Serializer):
     def get_tax_data(self, cart):
         subtotal = Decimal(self.get_subtotal(cart))
         discount = Decimal(self.get_discount(cart))
-        taxable_amount = subtotal - discount
+        taxable_amount = max(subtotal - discount, Decimal("0.00"))
 
         total_gst = Decimal("0.00")
         for item in cart.items.all().select_related("product", "variant"):
@@ -138,7 +138,9 @@ class CartSerializer(serializers.Serializer):
             ratio = line_price / subtotal if subtotal > 0 else Decimal(0)
             line_taxable = (taxable_amount * ratio).quantize(Decimal("0.01"))
             rate = getattr(item.product, "gst_percentage", None) or Decimal("18.00")
-            total_gst += (line_taxable * Decimal(str(rate)) / Decimal("100")).quantize(Decimal("0.01"))
+            rate = Decimal(str(rate))
+            if rate > 0:
+                total_gst += (line_taxable * rate / (Decimal("100") + rate)).quantize(Decimal("0.01"))
 
         cgst = (total_gst / Decimal("2")).quantize(Decimal("0.01"))
         sgst = (total_gst - cgst).quantize(Decimal("0.01"))
@@ -152,8 +154,7 @@ class CartSerializer(serializers.Serializer):
     def get_total(self, cart) -> str:
         subtotal = Decimal(self.get_subtotal(cart))
         discount = Decimal(self.get_discount(cart))
-        tax = Decimal(self.get_tax_data(cart)["gst_amount"])
-        return str((subtotal - discount + tax).quantize(Decimal("0.01")))
+        return str(max(subtotal - discount, Decimal("0.00")).quantize(Decimal("0.01")))
 
     def get_coupon(self, cart):
         if not cart.coupon:

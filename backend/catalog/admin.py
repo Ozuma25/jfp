@@ -43,7 +43,7 @@ class ProductVariantInline(admin.StackedInline):
         if po:
             po.help_text = (
                 "Leave blank to use the base product price above. "
-                "Set only if this color/size costs differently."
+                "Set only if this color/size costs differently. GST is added for the storefront display."
             )
         return formset
 
@@ -97,16 +97,16 @@ class ProductAdmin(admin.ModelAdmin):
                     "updated_at",
                 ),
                 "description": (
-                    "<strong>Price</strong>: Set the base selling price. "
-                    "If this product has NO variants (no colors/sizes), this is the final price shown to customers. "
+                    "<strong>Price</strong>: Set the base selling price before GST. "
+                    "If this product has NO variants (no colors/sizes), GST is added to this price for customers. "
                     "If it HAS variants (added below), this is the <em>fallback</em> price — "
-                    "each variant can optionally override it. "
+                    "each variant can optionally override it before GST. "
                     "<br><br>"
                     "<strong>Stock</strong>: For products WITH variants, set stock on each variant below instead. "
                     "This base stock is only used for products with no variants."
                     "<br><br>"
-                    "<strong>GST %</strong>: Tax rate applied to this product at checkout (e.g. 5, 12, 18). "
-                    "Default when creating a new product is 18% — change per item as needed."
+                    "<strong>GST %</strong>: Tax rate added to the product price for storefront MRP (e.g. 5, 12, 18). "
+                    "Default when creating a new product is 18% - change per item as needed."
                 ),
             },
         ),
@@ -130,7 +130,7 @@ class ProductAdmin(admin.ModelAdmin):
         )
         if "gst_percentage" in form.base_fields:
             form.base_fields["gst_percentage"].help_text = (
-                "GST rate for this product (0–100). Used for cart totals and order tax lines."
+                "GST rate added to this product's admin price for customer-facing MRP (0-100)."
             )
         return form
 

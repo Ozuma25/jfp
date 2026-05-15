@@ -138,10 +138,10 @@ class Product(models.Model):
         help_text="Minimum order quantity for this item.",
     )
     gst_percentage = models.DecimalField(
-        max_digits=5, 
-        decimal_places=2, 
+        max_digits=5,
+        decimal_places=2,
         default=18.00,
-        help_text="GST percentage for this product (e.g., 18.00)."
+        help_text="GST percentage added to this product's price for storefront MRP (e.g., 18.00)."
     )
     height_cm = models.DecimalField(
         max_digits=10,
@@ -241,7 +241,7 @@ class ProductVariant(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="Leave blank to use the base product price.",
+        help_text="Leave blank to use the base product price. GST is added for storefront MRP.",
     )
     stock = models.PositiveIntegerField(default=0)
     sku_suffix = models.CharField(

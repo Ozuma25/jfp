@@ -141,24 +141,18 @@ export async function fetchGuestCartData(): Promise<CartData> {
     }
   }
 
-  const GST_RATE = 0.18;
-  const gstAmount = parseFloat((subtotal * GST_RATE).toFixed(2));
-  const cgstAmount = parseFloat((gstAmount / 2).toFixed(2));
-  const sgstAmount = parseFloat((gstAmount - cgstAmount).toFixed(2));
-  const total = subtotal + gstAmount;
-
   const fmt = (n: number) => n.toFixed(2);
 
   return {
     items,
     subtotal: fmt(subtotal),
     discount: "0.00",
-    total: fmt(total),
+    total: fmt(subtotal),
     coupon: null,
     tax_data: {
-      gst_amount: fmt(gstAmount),
-      cgst_amount: fmt(cgstAmount),
-      sgst_amount: fmt(sgstAmount),
+      gst_amount: "0.00",
+      cgst_amount: "0.00",
+      sgst_amount: "0.00",
     },
   };
 }

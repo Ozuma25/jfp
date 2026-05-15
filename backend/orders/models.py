@@ -194,10 +194,16 @@ class OrderLine(models.Model):
 
     def save(self, *args, **kwargs):
         if self.unit_price is not None and self.quantity is not None:
-            # unit_price is EXCLUSIVE of GST
-            amount = Decimal(self.unit_price) * Decimal(self.quantity)
-            self.gst_amount = (amount * Decimal(self.gst_percentage) / Decimal("100")).quantize(Decimal("0.01"))
-            self.line_total = (amount + self.gst_amount).quantize(Decimal("0.01"))
+            # unit_price is the displayed MRP, inclusive of GST.
+            gross_amount = Decimal(self.line_total) if self.line_total is not None else Decimal(self.unit_price) * Decimal(self.quantity)
+            gross_amount = gross_amount.quantize(Decimal("0.01"))
+            rate = Decimal(self.gst_percentage or 0)
+            self.gst_amount = (
+                (gross_amount * rate / (Decimal("100") + rate)).quantize(Decimal("0.01"))
+                if rate > 0
+                else Decimal("0.00")
+            )
+            self.line_total = gross_amount
         super().save(*args, **kwargs)
 
 

@@ -1008,15 +1008,9 @@ export default function CheckoutPage() {
                 
                 <div className="space-y-2 text-[13px] text-gray-800 border-b border-gray-200 pb-4 mb-2">
                   <div className="flex justify-between">
-                     <span>Items (Subtotal):</span>
+                     <span>Items (MRP incl. GST):</span>
                      <span>₹ {cart.subtotal}</span>
                   </div>
-                  {cart.tax_data && (
-                    <div className="flex justify-between">
-                       <span>GST:</span>
-                       <span>₹ {cart.tax_data.gst_amount}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between">
                      <span className="text-gray-500">Delivery / shipping:</span>
                      <span className="text-gray-800 text-right max-w-[55%]">
@@ -1045,7 +1039,7 @@ export default function CheckoutPage() {
                 </div>
                 {shippingMethod === "custom_courier" && (
                   <p className="text-[11px] text-gray-500 -mt-1 mb-1">
-                    Total shown is for products and tax only. Courier charges are not included.
+                    Total shown is for products only. Courier charges are not included.
                   </p>
                 )}
             </div>

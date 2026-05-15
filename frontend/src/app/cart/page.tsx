@@ -357,7 +357,7 @@ export default function CartPage() {
                      <div className="pt-4 space-y-2 border-t border-gray-50/50">
                         <div className="flex justify-between text-store-navy">
                            <span>GST</span>
-                           <span>₹ {cart.tax_data.gst_amount}</span>
+                           <span>Included in MRP</span>
                         </div>
                      </div>
 
@@ -411,7 +411,7 @@ export default function CartPage() {
                   </div>
 
                   <div className="py-8 flex justify-between items-baseline mb-4">
-                     <span className="text-xs font-bold uppercase tracking-[0.2em] text-store-navy">Subtotal Payable</span>
+                     <span className="text-xs font-bold uppercase tracking-[0.2em] text-store-navy">Total Payable</span>
                      <span className="text-4xl font-serif text-store-navy leading-none">{cart.total}</span>
                   </div>
 

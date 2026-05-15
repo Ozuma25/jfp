@@ -244,8 +244,6 @@ function BulkCheckoutContent() {
 
   const totalPrice = parseFloat(order.total);
   const subtotal = parseFloat(order.subtotal || order.total);
-  const gstTotal = Math.max(0, totalPrice - subtotal);
-  const hasGst = gstTotal > 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12">
@@ -427,15 +425,9 @@ function BulkCheckoutContent() {
 
           <div className="border-t border-gray-100 pt-4 space-y-2.5 text-[13px]">
             <div className="flex justify-between text-neutral-600">
-              <span>Subtotal (excl. GST)</span>
+              <span>Subtotal (MRP incl. GST)</span>
               <span>₹{subtotal.toLocaleString("en-IN")}</span>
             </div>
-            {hasGst && (
-              <div className="flex justify-between text-neutral-500 bg-neutral-50 rounded-lg px-2 py-1">
-                <span className="font-medium">GST</span>
-                <span className="font-medium">₹{gstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-            )}
             <div className="flex justify-between text-neutral-400">
               <span>Delivery</span>
               <span className="italic text-[12px]">Calculated at dispatch</span>

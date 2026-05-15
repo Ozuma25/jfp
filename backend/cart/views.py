@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from cart.models import CartItem
 from cart.serializers import CartItemWriteSerializer, CartSerializer
 from cart.utils import cart_with_item_prefetch, get_or_create_cart
+from catalog.utils import gst_inclusive_price
 
 
 def _cart_response(request, cart, *, status_code=status.HTTP_200_OK):
@@ -69,12 +70,13 @@ class CartItemListView(APIView):
         qty     = ser.validated_data["quantity"]
         design  = ser.validated_data.get("custom_design_file")
 
-        # Effective price: variant override if set, else base product price
-        effective_price = (
+        # Effective price: variant/base price plus product GST.
+        base_price = (
             variant.price_override
             if variant and variant.price_override is not None
             else product.price
         )
+        effective_price = gst_inclusive_price(base_price, product.gst_percentage)
 
         if design:
             # Always create a new line for bespoke designs
@@ -135,7 +137,7 @@ class CartItemDetailView(APIView):
         if err:
             return Response({"detail": err}, status=status.HTTP_401_UNAUTHORIZED)
         try:
-            item = CartItem.objects.select_related("product").get(id=item_id, cart=cart)
+            item = CartItem.objects.select_related("product", "variant").get(id=item_id, cart=cart)
         except CartItem.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -145,7 +147,11 @@ class CartItemDetailView(APIView):
             return _cart_response(request, cart)
 
         ser = CartItemWriteSerializer(
-            data={"product_slug": item.product.slug, "quantity": qty}
+            data={
+                "product_slug": item.product.slug,
+                "quantity": qty,
+                "variant_id": item.variant_id,
+            }
         )
         ser.is_valid(raise_exception=True)
         item.quantity = qty

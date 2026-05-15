@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from catalog.models import Product, ProductVariant
+from catalog.utils import gst_inclusive_price
 
 
 class Cart(models.Model):
@@ -71,7 +72,7 @@ class CartItem(models.Model):
 
     @property
     def effective_price(self):
-        """Variant price override takes precedence over base product price."""
+        """Final customer price: variant/base price plus product GST."""
         if self.variant and self.variant.price_override is not None:
-            return self.variant.price_override
-        return self.product.price
+            return gst_inclusive_price(self.variant.price_override, self.product.gst_percentage)
+        return gst_inclusive_price(self.product.price, self.product.gst_percentage)
