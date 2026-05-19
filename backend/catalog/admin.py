@@ -2,9 +2,13 @@ from django.contrib import admin
 from django.contrib import messages
 from django.db.models.deletion import ProtectedError
 from django.db.models import Max
+from django.urls import reverse, path
+from django.http import HttpResponseRedirect
+from django.utils.html import format_html
 
 from catalog.forms import ProductAdminForm, ProductVariantAdminForm
 from catalog.models import Category, Product, ProductImage, ProductVariant, ProductVariantImage, SiteSettings
+from catalog import admin_views
 
 
 class ProductImageInline(admin.TabularInline):
@@ -79,6 +83,7 @@ class ProductAdmin(admin.ModelAdmin):
                     "name",
                     "slug",
                     "sku",
+                    "hsn_code",
                     "description",
                     "price",
                     "compare_at_price",
@@ -128,6 +133,8 @@ class ProductAdmin(admin.ModelAdmin):
             "If the JFP- prefix is missing, it is added automatically on save "
             "(e.g. BOX-01 becomes JFP-BOX-01)."
         )
+        if "hsn_code" in form.base_fields:
+            form.base_fields["hsn_code"].help_text = "Required. Enter numbers only."
         if "gst_percentage" in form.base_fields:
             form.base_fields["gst_percentage"].help_text = (
                 "GST rate added to this product's admin price for customer-facing MRP (0-100)."
@@ -151,6 +158,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "sku",
+        "hsn_code",
         "category",
         "price",
         "compare_at_price",
@@ -164,9 +172,23 @@ class ProductAdmin(admin.ModelAdmin):
         "is_bestseller",
     )
     list_filter = ("is_active", "is_customizable", "is_bestseller", "category")
-    search_fields = ("name", "sku", "description")
+    search_fields = ("name", "sku", "hsn_code", "description")
     prepopulated_fields = {"slug": ("name",)}
     inlines = (ProductImageInline, ProductVariantInline)
+    
+    change_list_template = "admin/catalog/product_changelist.html"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path("bulk-import-products/", self.admin_site.admin_view(admin_views.bulk_import_products_view), name="catalog_bulk_import_products"),
+        ]
+        return custom_urls + urls
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["bulk_import_url"] = reverse("admin:catalog_bulk_import_products")
+        return super().changelist_view(request, extra_context=extra_context)
 
     def get_deleted_objects(self, objs, request):
         deleted_objects, model_count, perms_needed, protected = super().get_deleted_objects(

@@ -4,6 +4,7 @@ export type ProductCard = {
   id: number;
   slug: string;
   sku: string;
+  hsn_code: string;
   title: string;
   price: string;
   image: string | null;

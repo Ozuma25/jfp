@@ -83,6 +83,14 @@ class ProductAdminForm(forms.ModelForm):
             raise ValidationError("Price cannot be negative.")
         return d
 
+    def clean_hsn_code(self):
+        value = (self.cleaned_data.get("hsn_code") or "").strip()
+        if not value:
+            raise ValidationError("HSN code is required.")
+        if not value.isdigit():
+            raise ValidationError("HSN code must contain numbers only.")
+        return value
+
     def clean_compare_at_price(self):
         d = self._parse_inr_amount("compare_at_price", required=False, label="Compare-at price")
         if d is not None and d < 0:
@@ -180,3 +188,32 @@ class ProductVariantAdminForm(forms.ModelForm):
 
     def clean_weight_g(self):
         return self._clean_decimal_2dp("weight_g")
+
+
+class BulkImportProductForm(forms.Form):
+    """Form for bulk importing products from Excel file."""
+    
+    excel_file = forms.FileField(
+        label="Excel File (.xlsx)",
+        required=True,
+        help_text="Upload a .xlsx file with product data. Required columns: Category, Name, SKU, Price.",
+        widget=forms.FileInput(attrs={
+            "accept": ".xlsx",
+            "class": "form-control",
+        })
+    )
+    
+    def clean_excel_file(self):
+        file = self.cleaned_data.get("excel_file")
+        if not file:
+            raise ValidationError("Please select an Excel file.")
+        
+        # Check file extension
+        if not file.name.lower().endswith(".xlsx"):
+            raise ValidationError("File must be in .xlsx format (Excel 2007 or later).")
+        
+        # Check file size (max 10MB)
+        if file.size > 10 * 1024 * 1024:
+            raise ValidationError("File size must be less than 10MB.")
+        
+        return file

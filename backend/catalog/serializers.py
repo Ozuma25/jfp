@@ -51,6 +51,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             "id",
             "slug",
             "sku",
+            "hsn_code",
             "title",
             "price",
             "image",

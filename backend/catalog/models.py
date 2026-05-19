@@ -1,5 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
@@ -104,6 +105,16 @@ class Product(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True, db_index=True)
     sku = models.CharField(max_length=64, unique=True, db_index=True)
+    hsn_code = models.CharField(
+        max_length=16,
+        validators=[
+            RegexValidator(
+                regex=r"^\d+$",
+                message="HSN code must contain numbers only.",
+            )
+        ],
+        help_text="Required. Enter numbers only.",
+    )
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=12, decimal_places=2)
     compare_at_price = models.DecimalField(

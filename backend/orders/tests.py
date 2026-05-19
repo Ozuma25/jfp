@@ -20,6 +20,7 @@ class OrderLineInclusiveMrpTests(TestCase):
             name="Premium Box",
             slug="premium-box",
             sku="JFP-BOX-1",
+            hsn_code="481920",
             price=Decimal("100.00"),
             gst_percentage=Decimal("18.00"),
             stock=10,

@@ -1,0 +1,5 @@
+Category,Name,Slug,SKU,HSN Code,Price,Compare At Price,GST Percentage,Stock,Height CM,Width CM,Weight G,Is Active,Is Bestseller,Is Customizable,Is Returnable,Bulk Threshold,Min Qty,Is_live,Notes
+Gift Boxes,Premium Gift Box - Small,premium-gift-box-small,GIFT-BOX-001,4819,150.00,199.00,18.00,100,10.5,15.0,200,Yes,Yes,No,Yes,50,1,,Popular small gift box
+Gift Boxes,Premium Gift Box - Medium,premium-gift-box-medium,GIFT-BOX-002,4819,250.00,349.00,18.00,75,15.0,20.0,350,Yes,No,Yes,Yes,30,1,,Customizable medium box
+Packaging,Tissue Paper Pack,tissue-paper-pack,TISSUE-PAPER-001,4802,50.00,,5.00,500,,,,Yes,Yes,No,No,100,5,,Assorted colors
+Ribbon & String,Silk Ribbon - Gold,silk-ribbon-gold,RIBBON-GOLD-001,5807,75.00,99.00,12.00,200,,2.5,50,Yes,No,No,Yes,,1,,5 meter roll

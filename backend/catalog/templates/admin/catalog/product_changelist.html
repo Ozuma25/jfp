@@ -1,0 +1,31 @@
+{% extends "admin/change_list.html" %}
+{% load admin_urls static %}
+
+{% block content_title %}
+    <h1>Products</h1>
+{% endblock %}
+
+{% block search %}
+    {{ block.super }}
+{% endblock %}
+
+{% block date_hierarchy %}
+    {{ block.super }}
+{% endblock %}
+
+{% block filters %}
+    {{ block.super }}
+{% endblock %}
+
+{% block result_list %}
+    <div style="margin-bottom: 20px;">
+        <a href="{{ bulk_import_url }}" class="button" style="background-color: #417690; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; display: inline-block;">
+            📥 Bulk Import Products
+        </a>
+    </div>
+    {{ block.super }}
+{% endblock %}
+
+{% block pagination %}
+    {{ block.super }}
+{% endblock %}
