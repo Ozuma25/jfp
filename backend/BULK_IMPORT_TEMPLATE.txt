@@ -4,26 +4,27 @@ Sample Bulk Import Template - CSV format (can be converted to .xlsx)
 This file shows the expected format for bulk product import.
 
 Column Headers (in order):
-Category,Name,Slug,SKU,HSN Code,Price,Compare At Price,GST Percentage,Stock,Height CM,Width CM,Weight G,Is Active,Is Bestseller,Is Customizable,Is Returnable,Bulk Threshold,Min Qty,Is_live,Notes
+Category,Name,Slug,SKU,HSN Code,Price,Compare At Price,Description,GST Percentage,Stock,Height CM,Width CM,Weight G,Is Active,Is Bestseller,Is Customizable,Is Returnable,Bulk Threshold,Min Qty,Is_live,Notes
 
 Sample Data Row 1:
-Boxes,Brown Kraft Box,brown-kraft-box,BOX-01,9403,150.00,200.00,18.00,500,20.00,15.00,50.00,Yes,No,No,Yes,100,1,,High quality kraft box
+Boxes,Brown Kraft Box,brown-kraft-box,BOX-01,9403,150.00,200.00,Premium brown kraft box perfect for shipping and storage. High quality material that protects products during transit.,18.00,500,20.00,15.00,50.00,Yes,No,No,Yes,100,1,,High quality kraft box
 
 Sample Data Row 2:
-Boxes,White Cardboard Box,white-cardboard-box,BOX-02,9403,120.00,150.00,18.00,300,18.00,12.00,45.00,Yes,No,No,Yes,100,1,,Standard white cardboard
+Boxes,White Cardboard Box,white-cardboard-box,BOX-02,9403,120.00,150.00,Standard white cardboard box suitable for various products. Lightweight yet durable.,18.00,300,18.00,12.00,45.00,Yes,No,No,Yes,100,1,,Standard white cardboard
 
 Sample Data Row 3:
-Decorative,Gift Wrap Sheet,gift-wrap-sheet,WRAP-01,9403,25.00,,18.00,1000,0.05,30.00,10.00,Yes,Yes,No,No,500,5,,Colorful gift wrap
+Decorative,Gift Wrap Sheet,gift-wrap-sheet,WRAP-01,9403,25.00,,Colorful decorative gift wrap sheets. Available in multiple patterns. Perfect for gift packaging.,18.00,1000,0.05,30.00,10.00,Yes,Yes,No,No,500,5,,Colorful gift wrap
 
 Notes:
 - Required columns: Category, Name, SKU, Price
 - For new categories, they will be created automatically
 - If Slug is empty, it will be auto-generated from Name
+- Description column is optional - leave empty if not available
 - Boolean fields (Is Active, Is Bestseller, etc.) accept: Yes/No, True/False, 1/0
 - Is_live column: set to "Yes" to skip that row
 - Rows with duplicate SKUs will be skipped
 - HSN Code must contain numbers only
 - All prices should be without GST (GST is added separately)
 - Empty numeric fields default to 0 or null as appropriate
-- Product descriptions and images should be added manually after import
+- Product images should be added manually after import
 """

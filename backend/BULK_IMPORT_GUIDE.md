@@ -27,6 +27,7 @@ The Bulk Product Import feature allows admins to import multiple products at onc
 | HSN Code | String | No | HSN code (numbers only) |
 | Price | Decimal | Yes | Base price before GST |
 | Compare At Price | Decimal | No | Strike-through price (for sales) |
+| Description | String | No | Product description; leave empty if not available |
 | GST Percentage | Decimal | No | Default: 18.00 |
 | Stock | Integer | No | Initial stock quantity |
 | Height CM | Decimal | No | Height in centimeters |

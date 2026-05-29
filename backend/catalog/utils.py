@@ -293,6 +293,12 @@ def bulk_import_products(
                     except:
                         pass
                 
+                description = get_cell_value("Description")
+                if description:
+                    description = str(description).strip()
+                else:
+                    description = ""
+                
                 # Create product
                 product = Product(
                     category=category,
@@ -300,6 +306,7 @@ def bulk_import_products(
                     slug=slug,
                     sku=sku,
                     hsn_code=hsn_code,
+                    description=description,
                     price=price,
                     compare_at_price=compare_at_price,
                     gst_percentage=gst_percentage,
