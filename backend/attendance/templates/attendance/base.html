@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}JFP Employee Portal{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#fff7ed', 100:'#ffedd5', 500:'#f97316', 600:'#ea580c', 700:'#c2410c', 900:'#7c2d12' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .status-PRESENT  { @apply bg-green-100 text-green-800; }
+    .status-LATE     { @apply bg-yellow-100 text-yellow-800; }
+    .status-HALF_DAY { @apply bg-orange-100 text-orange-800; }
+    .status-ABSENT   { @apply bg-red-100 text-red-800; }
+    .status-INCOMPLETE { @apply bg-gray-100 text-gray-700; }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+
+  {% if request.session.employee_id %}
+  <!-- Top Navigation -->
+  <nav class="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-sm">JFP</div>
+        <span class="font-semibold text-white">Employee Portal</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="{% url 'attendance:profile' %}" class="text-sm text-gray-400 hover:text-white transition font-medium hidden sm:block">{{ request.session.employee_name }}</a>
+        <div class="flex gap-2">
+          <a href="{% url 'attendance:dashboard' %}"
+             class="text-sm px-3 py-1.5 rounded-lg {% if request.resolver_match.url_name == 'dashboard' %}bg-brand-500 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %} transition">
+            Dashboard
+          </a>
+          <a href="{% url 'attendance:history' %}"
+             class="text-sm px-3 py-1.5 rounded-lg {% if request.resolver_match.url_name == 'history' %}bg-brand-500 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %} transition">
+            History
+          </a>
+          <a href="{% url 'attendance:logout' %}"
+             class="text-sm px-3 py-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-gray-800 transition">
+            Logout
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+  {% endif %}
+
+  <!-- Messages -->
+  {% if messages %}
+  <div class="max-w-5xl mx-auto px-4 pt-4 space-y-2">
+    {% for message in messages %}
+    <div class="rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2
+      {% if message.tags == 'error' %}bg-red-900/50 text-red-300 border border-red-800
+      {% elif message.tags == 'warning' %}bg-yellow-900/50 text-yellow-300 border border-yellow-800
+      {% elif message.tags == 'success' %}bg-green-900/50 text-green-300 border border-green-800
+      {% else %}bg-blue-900/50 text-blue-300 border border-blue-800{% endif %}">
+      <span>{{ message }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Page Content -->
+  <main class="max-w-5xl mx-auto px-4 py-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="text-center text-xs text-gray-600 py-6">
+    Jai Fancy Packs &mdash; Employee Portal &copy; {% now "Y" %}
+  </footer>
+
+</body>
+</html>

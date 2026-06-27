@@ -18,6 +18,7 @@ urlpatterns = [
     path("api/", include("wishlist.urls")),
     path("api/coupons/", include("coupons.urls")),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("employee/", include("attendance.urls", namespace="attendance")),
 ]
 
 if settings.DEBUG:

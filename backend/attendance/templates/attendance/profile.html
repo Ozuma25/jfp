@@ -1,0 +1,177 @@
+{% extends "attendance/base.html" %}
+{% block title %}My Profile — JFP Employee Portal{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <!-- Back link -->
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'attendance:dashboard' %}" class="text-gray-400 hover:text-white transition">← Back to Dashboard</a>
+  </div>
+
+  <!-- Profile Card -->
+  <div class="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-2xl">
+    
+    <!-- Top banner styling -->
+    <div class="h-32 bg-gradient-to-r from-orange-600 to-orange-950 relative">
+      <div class="absolute right-6 top-6">
+        <span class="inline-block text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider
+          {% if employee.status == 'active' %}bg-green-900/80 text-green-300 border border-green-700
+          {% else %}bg-red-900/80 text-red-300 border border-red-700{% endif %}">
+          {{ employee.get_status_display }}
+        </span>
+      </div>
+    </div>
+
+    <!-- User Detail Header Area -->
+    <div class="px-6 pb-6 relative">
+      <!-- Avatar/Photo overlapping the banner with upload overlay -->
+      <div class="relative w-24 h-24 rounded-2xl bg-gray-800 border-4 border-gray-900 -mt-12 overflow-hidden shadow-lg group cursor-pointer" 
+           onclick="document.getElementById('photoInput').click()">
+        
+        <div id="avatarWrapper" class="w-full h-full flex items-center justify-center">
+          {% if employee.profile_photo %}
+            <img id="avatarImage" src="{{ employee.profile_photo }}" class="w-full h-full object-cover animate-fade-in" alt="{{ employee.name }}">
+          {% else %}
+            <!-- SVG Fallback Avatar -->
+            <svg id="avatarFallback" class="w-12 h-12 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          {% endif %}
+        </div>
+
+        <!-- Loading spinner overlay -->
+        <div id="uploadSpinner" class="hidden absolute inset-0 bg-black/70 flex items-center justify-center">
+          <svg class="animate-spin h-6 w-6 text-brand-500" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+
+        <!-- Edit/Change Overlay -->
+        <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-1">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+          <span class="text-[9px] text-white font-bold uppercase tracking-wider">Change</span>
+        </div>
+      </div>
+
+      <!-- Hidden File Input -->
+      <input type="file" id="photoInput" accept="image/*" class="hidden" onchange="uploadPhoto(this)">
+
+      <div class="mt-4">
+        <h1 class="text-2xl font-bold text-white">{{ employee.name }}</h1>
+        <p class="text-brand-500 font-semibold text-sm">{{ employee.designation }}</p>
+        <!-- Status messages -->
+        <p id="uploadStatus" class="text-xs mt-1 transition-all duration-300 hidden"></p>
+      </div>
+
+      <div class="border-t border-gray-800 my-6"></div>
+
+      <!-- Info Fields -->
+      <div class="space-y-4">
+        
+        <!-- Employee Code -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-3 bg-gray-800/40 rounded-xl">
+          <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Employee ID</span>
+          <span class="text-sm font-bold text-white">{{ employee.employee_code }}</span>
+        </div>
+
+        <!-- Mobile Number -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-3 bg-gray-800/40 rounded-xl">
+          <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Mobile Number</span>
+          <span class="text-sm font-semibold text-white">{{ employee.mobile }}</span>
+        </div>
+
+        <!-- Joining Date -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-3 bg-gray-800/40 rounded-xl">
+          <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Joining Date</span>
+          <span class="text-sm font-semibold text-white">{{ employee.joining_date|date:"d F Y" }}</span>
+        </div>
+
+        <!-- Address -->
+        <div class="flex flex-col gap-1.5 p-3 bg-gray-800/40 rounded-xl">
+          <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Address</span>
+          <p class="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+            {% if employee.address %}{{ employee.address }}{% else %}<span class="text-gray-600 italic">No address provided</span>{% endif %}
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showUploadStatus(msg, isError) {
+  const statusEl = document.getElementById('uploadStatus');
+  statusEl.textContent = msg;
+  statusEl.className = `text-xs mt-1 transition-all duration-300 font-medium ${isError ? 'text-red-400' : 'text-green-400'}`;
+  statusEl.classList.remove('hidden');
+}
+
+function hideUploadStatus() {
+  document.getElementById('uploadStatus').classList.add('hidden');
+}
+
+function uploadPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Verify it's an image
+  if (!file.type.startsWith('image/')) {
+    showUploadStatus('Please select a valid image file.', true);
+    return;
+  }
+
+  // Show spinner, hide status
+  document.getElementById('uploadSpinner').classList.remove('hidden');
+  hideUploadStatus();
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const base64Data = e.target.result;
+
+    try {
+      const res = await fetch("{% url 'attendance:update_profile_photo' %}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ photo: base64Data })
+      });
+      const data = await res.json();
+      
+      document.getElementById('uploadSpinner').classList.add('hidden');
+      if (data.success) {
+        // Update avatar image in UI
+        const wrapper = document.getElementById('avatarWrapper');
+        wrapper.innerHTML = `<img id="avatarImage" src="${data.photo_url}" class="w-full h-full object-cover animate-fade-in" alt="{{ employee.name }}">`;
+        showUploadStatus('✅ Photo updated successfully!', false);
+        
+        // Also update local session cache name display if applicable (or just page refresh)
+        setTimeout(hideUploadStatus, 3000);
+      } else {
+        showUploadStatus(`❌ ${data.message}`, true);
+      }
+    } catch (err) {
+      document.getElementById('uploadSpinner').classList.add('hidden');
+      showUploadStatus('❌ Network error. Please try again.', true);
+    }
+  };
+  
+  reader.onerror = function() {
+    document.getElementById('uploadSpinner').classList.add('hidden');
+    showUploadStatus('❌ Failed to read file.', true);
+  };
+  
+  reader.readAsDataURL(file);
+}
+
+function getCookie(name) {
+  return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='))?.split('=')[1] ?? '';
+}
+</script>
+{% endblock %}

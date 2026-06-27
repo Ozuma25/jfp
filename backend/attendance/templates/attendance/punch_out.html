@@ -1,0 +1,183 @@
+{% extends "attendance/base.html" %}
+{% block title %}Punch Out — JFP Employee Portal{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'attendance:dashboard' %}" class="text-gray-400 hover:text-white transition">← Back</a>
+    <h1 class="text-xl font-bold text-white">Punch Out</h1>
+  </div>
+
+  <!-- Current session info -->
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4">
+    <div class="flex justify-between text-sm">
+      <span class="text-gray-400">Punched In At</span>
+      <span class="text-white font-semibold">{{ attendance.punch_in_time_display }}</span>
+    </div>
+  </div>
+
+  <div id="statusMsg" class="hidden rounded-xl p-4 mb-4 text-sm font-medium"></div>
+
+  <!-- Camera -->
+  <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden mb-4">
+    <div class="relative bg-black aspect-video">
+      <video id="camera" autoplay playsinline muted class="w-full h-full object-cover"></video>
+      <canvas id="canvas" class="hidden"></canvas>
+      <div id="capturedOverlay" class="hidden absolute inset-0">
+        <img id="capturedImg" class="w-full h-full object-cover" alt="Captured selfie">
+        <div class="absolute inset-0 bg-black/30 flex items-end justify-center pb-4">
+          <span class="text-green-400 font-semibold text-sm bg-black/60 px-3 py-1.5 rounded-full">✅ Photo Captured</span>
+        </div>
+      </div>
+    </div>
+    <div class="p-4 flex gap-3">
+      <button id="captureBtn" onclick="capturePhoto()"
+              class="flex-1 bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2.5 rounded-xl transition">
+        📸 Take Selfie
+      </button>
+      <button id="retakeBtn" onclick="retakePhoto()"
+              class="hidden flex-1 bg-gray-700 hover:bg-gray-600 text-white font-medium py-2.5 rounded-xl transition">
+        🔄 Retake
+      </button>
+    </div>
+  </div>
+
+  <!-- GPS -->
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4">
+    <div class="flex items-center gap-3">
+      <div id="gpsIcon" class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm">📍</div>
+      <div>
+        <p class="text-sm font-medium text-white" id="gpsStatus">Getting your location…</p>
+        <p class="text-xs text-gray-500" id="gpsDetail">Please allow location access</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Punch Out Button -->
+  <button id="punchOutBtn" onclick="submitPunchOut()" disabled
+          class="w-full bg-red-600 hover:bg-red-500 disabled:bg-gray-700 disabled:text-gray-500
+                 text-white font-bold py-4 rounded-2xl transition transform active:scale-95
+                 text-lg shadow-lg shadow-red-900/30">
+    🔴 Confirm Punch Out
+  </button>
+</div>
+
+<script>
+const OFFICE_LAT = {{ office_lat }};
+const OFFICE_LNG = {{ office_lng }};
+const ALLOWED_RADIUS = {{ allowed_radius }};
+const GEOFENCE_ENABLED = {{ geofence_enabled|yesno:"true,false" }};
+
+let photoB64 = null;
+let gpsData = { latitude: null, longitude: null, accuracy: null };
+let gpsOk = !GEOFENCE_ENABLED;
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    document.getElementById('camera').srcObject = stream;
+  } catch (e) {
+    showStatus('Camera access denied. Please allow camera to punch out.', 'error');
+  }
+}
+
+function capturePhoto() {
+  const video = document.getElementById('camera');
+  const canvas = document.getElementById('canvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  photoB64 = canvas.toDataURL('image/jpeg', 0.7);
+  document.getElementById('capturedImg').src = photoB64;
+  document.getElementById('capturedOverlay').classList.remove('hidden');
+  document.getElementById('captureBtn').classList.add('hidden');
+  document.getElementById('retakeBtn').classList.remove('hidden');
+  checkReady();
+}
+
+function retakePhoto() {
+  photoB64 = null;
+  document.getElementById('capturedOverlay').classList.add('hidden');
+  document.getElementById('captureBtn').classList.remove('hidden');
+  document.getElementById('retakeBtn').classList.add('hidden');
+  checkReady();
+}
+
+function startGPS() {
+  if (!navigator.geolocation) { if (!GEOFENCE_ENABLED) { gpsOk = true; checkReady(); } return; }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      gpsData = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy };
+      if (GEOFENCE_ENABLED) {
+        const dist = haversine(pos.coords.latitude, pos.coords.longitude, OFFICE_LAT, OFFICE_LNG);
+        gpsOk = dist <= ALLOWED_RADIUS;
+        document.getElementById('gpsIcon').textContent = gpsOk ? '✅' : '❌';
+        document.getElementById('gpsStatus').textContent = gpsOk ? 'Location verified' : 'Outside office area';
+        document.getElementById('gpsDetail').textContent = `${dist.toFixed(0)} m from office`;
+      } else {
+        gpsOk = true;
+        document.getElementById('gpsStatus').textContent = 'Location captured';
+        document.getElementById('gpsDetail').textContent = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+      }
+      checkReady();
+    },
+    () => { if (!GEOFENCE_ENABLED) { gpsOk = true; checkReady(); } }
+  );
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
+function checkReady() {
+  document.getElementById('punchOutBtn').disabled = !(photoB64 && gpsOk);
+}
+
+function getDeviceFingerprint() {
+  const raw = [navigator.userAgent, navigator.language, screen.width, screen.height].join('|');
+  let h = 0;
+  for (let i = 0; i < raw.length; i++) { h = ((h<<5)-h)+raw.charCodeAt(i); h|=0; }
+  return Math.abs(h).toString(16).padStart(8,'0');
+}
+
+async function submitPunchOut() {
+  const btn = document.getElementById('punchOutBtn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+
+  try {
+    const res = await fetch("{% url 'attendance:punch_out_submit' %}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+      body: JSON.stringify({ photo: photoB64, latitude: gpsData.latitude, longitude: gpsData.longitude, accuracy: gpsData.accuracy, device_fingerprint: getDeviceFingerprint() }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showStatus(`✅ ${data.message} Status: ${data.status} | Hours: ${data.working_hours}`, 'success');
+      btn.textContent = '✅ Punched Out!';
+      setTimeout(() => { window.location.href = "{% url 'attendance:dashboard' %}"; }, 2000);
+    } else {
+      showStatus(`❌ ${data.message}`, 'error');
+      btn.disabled = false; btn.textContent = '🔴 Confirm Punch Out';
+    }
+  } catch (e) {
+    showStatus('Network error. Please try again.', 'error');
+    btn.disabled = false; btn.textContent = '🔴 Confirm Punch Out';
+  }
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = `rounded-xl p-4 mb-4 text-sm font-medium ${type === 'error' ? 'bg-red-900/50 text-red-300 border border-red-800' : 'bg-green-900/50 text-green-300 border border-green-800'}`;
+  el.classList.remove('hidden');
+}
+
+function getCookie(name) {
+  return document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith(name+'='))?.split('=')[1]??'';
+}
+
+startCamera(); startGPS();
+</script>
+{% endblock %}
