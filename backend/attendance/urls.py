@@ -16,4 +16,12 @@ urlpatterns = [
     path("history/",        views.attendance_history,  name="history"),
     path("profile/",        views.employee_profile,    name="profile"),
     path("profile/update-photo/", views.update_profile_photo, name="update_profile_photo"),
+    
+    # Custom Backoffice Admin Dashboard
+    path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
+    path("admin-dashboard/device/<int:device_id>/approve/", views.admin_approve_device, name="admin_approve_device"),
+    path("admin-dashboard/device/<int:device_id>/reject/", views.admin_reject_device, name="admin_reject_device"),
+    path("admin-dashboard/leave/<int:leave_id>/approve/", views.admin_approve_leave, name="admin_approve_leave"),
+    path("admin-dashboard/leave/<int:leave_id>/reject/", views.admin_reject_leave, name="admin_reject_leave"),
+    path("admin-dashboard/employee/<int:emp_id>/details/", views.admin_employee_details, name="admin_employee_details"),
 ]

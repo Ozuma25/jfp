@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Backoffice Control Panel — JFP</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#fff7ed', 100:'#ffedd5', 500:'#f97316', 600:'#ea580c', 700:'#c2410c', 900:'#7c2d12' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .fade-out { transition: all 0.5s ease; opacity: 0; transform: scale(0.9); }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0f19; }
+    ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #f97316; }
+    
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col justify-between">
+
+  <!-- Top Navigation -->
+  <nav class="bg-gray-900 border-b border-gray-800 sticky top-0 z-50 no-print">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-brand-500/20">JFP</div>
+        <span class="font-bold text-white tracking-wide">Backoffice Control Centre</span>
+      </div>
+      
+      <!-- Tab Controls (Desktop) -->
+      <div class="hidden md:flex bg-gray-950 p-1 rounded-xl border border-gray-800 gap-1">
+        <button onclick="switchTab('feed')" id="tabBtn-feed" class="tab-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition bg-brand-500 text-white">
+          📊 Today's Feed
+        </button>
+        <button onclick="switchTab('directory')" id="tabBtn-directory" class="tab-btn px-4 py-1.5 rounded-lg text-sm font-semibold text-gray-400 hover:text-white transition">
+          👥 Employee Directory
+        </button>
+        <button onclick="switchTab('payroll')" id="tabBtn-payroll" class="tab-btn px-4 py-1.5 rounded-lg text-sm font-semibold text-gray-400 hover:text-white transition">
+          💸 Payout Sheets & Reports
+        </button>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <a href="/" class="text-xs text-gray-450 hover:text-white transition">Hub Home</a>
+        <a href="/admin/" class="text-xs text-gray-450 hover:text-white transition bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-700">Django DB Admin</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Tab Controls (Mobile) -->
+  <div class="md:hidden bg-gray-900 border-b border-gray-800 p-2 flex gap-1 justify-around no-print">
+    <button onclick="switchTab('feed')" id="mTabBtn-feed" class="flex-1 text-center py-2 text-xs font-bold rounded-lg bg-brand-500 text-white transition">Feed</button>
+    <button onclick="switchTab('directory')" id="mTabBtn-directory" class="flex-1 text-center py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition">Directory</button>
+    <button onclick="switchTab('payroll')" id="mTabBtn-payroll" class="flex-1 text-center py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition">Payroll</button>
+  </div>
+
+  <!-- Message Toast Banner -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden transition-all duration-300 transform translate-y-10 opacity-0 no-print">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-2xl flex items-center gap-3">
+      <span id="toastIcon" class="text-lg"></span>
+      <span id="toastText" class="text-sm font-semibold text-white"></span>
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
+    
+    <!-- ========================================== -->
+    <!-- TAB 1: TODAY'S OPERATIONS FEED             -->
+    <!-- ========================================== -->
+    <div id="tabContent-feed" class="tab-pane space-y-6">
+      
+      <!-- Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h1 class="text-2xl font-extrabold text-white tracking-tight">Today's Operations Feed</h1>
+          <p class="text-xs text-gray-400">Live operational data for {{ today|date:"l, d F Y" }}</p>
+        </div>
+        <button onclick="window.location.reload()" class="bg-gray-900 hover:bg-gray-850 text-gray-300 text-xs font-semibold px-4 py-2.5 rounded-xl border border-gray-800 transition">
+          🔄 Refresh Feed
+        </button>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="bg-gray-900 border border-gray-850 rounded-2xl p-4 shadow-lg">
+          <p class="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Checked In Today</p>
+          <div class="flex items-baseline gap-2">
+            <span class="text-3xl font-extrabold text-white">{{ present_count }}</span>
+            <span class="text-xs text-gray-500">/ {{ total_active }} active</span>
+          </div>
+        </div>
+        <div class="bg-gray-900 border border-gray-850 rounded-2xl p-4 shadow-lg">
+          <p class="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Late Arrivals</p>
+          <span class="text-3xl font-extrabold text-yellow-500">{{ late_count }}</span>
+        </div>
+        <div class="bg-gray-900 border border-gray-850 rounded-2xl p-4 shadow-lg">
+          <p class="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Half Days</p>
+          <span class="text-3xl font-extrabold text-orange-500">{{ half_day_count }}</span>
+        </div>
+        <div class="bg-gray-900 border border-gray-850 rounded-2xl p-4 shadow-lg">
+          <p class="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Pending Sign Out</p>
+          <span class="text-3xl font-extrabold text-blue-400">{{ incomplete_count }}</span>
+        </div>
+        <div onclick="openAbsentModal()" class="bg-gray-900 border border-gray-850 hover:border-red-500/50 cursor-pointer rounded-2xl p-4 shadow-lg transition">
+          <p class="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Absent Today</p>
+          <span class="text-3xl font-extrabold text-red-500">{{ absent_count }}</span>
+        </div>
+      </div>
+
+      <!-- Daily Workspace Grid Split -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Attendance Feed List -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-xl">
+            <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <h2 class="font-bold text-white text-md">Daily Log Feed</h2>
+              <span class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded-full border border-gray-700">Live</span>
+            </div>
+
+            {% if records %}
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-gray-850 bg-gray-900/50">
+                    <th class="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3.5">Employee</th>
+                    <th class="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3.5">In Details</th>
+                    <th class="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3.5">Out Details</th>
+                    <th class="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3.5">Hours</th>
+                    <th class="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3.5">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-850">
+                  {% for record in records %}
+                  <tr class="hover:bg-gray-800/30 transition">
+                    <td class="px-5 py-3">
+                      <div class="flex items-center gap-3">
+                        {% if record.employee.profile_photo %}
+                          <img src="{{ record.employee.profile_photo }}" class="w-8 h-8 rounded-lg object-cover" alt="">
+                        {% else %}
+                          <div class="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-500">
+                            {{ record.employee.name|slice:":2"|upper }}
+                          </div>
+                        {% endif %}
+                        <div>
+                          <button onclick="openEmployeeModal({{ record.employee.pk }})" 
+                             class="font-semibold text-white hover:text-brand-500 hover:underline transition block text-left leading-tight">
+                            {{ record.employee.name }}
+                          </button>
+                          <span class="text-xs text-gray-500">{{ record.employee.employee_code }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-2">
+                        {% if record.punch_in_photo %}
+                          <a href="{{ record.punch_in_photo }}" target="_blank" class="w-10 h-10 rounded overflow-hidden border border-gray-700 flex-shrink-0">
+                            <img src="{{ record.punch_in_photo }}" class="w-full h-full object-cover" alt="">
+                          </a>
+                        {% endif %}
+                        <div>
+                          <p class="text-xs font-semibold text-gray-300">{{ record.punch_in_time_display }}</p>
+                          <p class="text-[10px] text-gray-550">
+                            {% if record.is_manual_entry %}Manual Override{% else %}{{ record.distance_from_office|floatformat:0 }}m from office{% endif %}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-2">
+                        {% if record.punch_out_photo %}
+                          <a href="{{ record.punch_out_photo }}" target="_blank" class="w-10 h-10 rounded overflow-hidden border border-gray-700 flex-shrink-0">
+                            <img src="{{ record.punch_out_photo }}" class="w-full h-full object-cover" alt="">
+                          </a>
+                        {% endif %}
+                        <div>
+                          <p class="text-xs font-semibold text-gray-300">
+                            {% if record.punch_out %}{{ record.punch_out_time_display }}{% else %}Pending{% endif %}
+                          </p>
+                          <p class="text-[10px] text-gray-550 font-mono">{{ record.device_name|default:"—" }}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3 text-gray-300 font-medium">{{ record.working_hours_display }}</td>
+                    <td class="px-4 py-3">
+                      <span class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full
+                        {% if record.status == 'PRESENT' %}bg-green-900/60 text-green-300 border border-green-800
+                        {% elif record.status == 'LATE' %}bg-yellow-900/60 text-yellow-300 border border-yellow-800
+                        {% elif record.status == 'HALF_DAY' %}bg-orange-900/60 text-orange-300 border border-orange-800
+                        {% elif record.status == 'ABSENT' %}bg-red-900/60 text-red-300 border border-red-800
+                        {% else %}bg-gray-800 text-gray-400{% endif %}">
+                        {{ record.get_status_display }}
+                      </span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="text-center py-16 text-gray-600 border-t border-gray-850">
+              <p class="text-4xl mb-2">📋</p>
+              <p class="text-sm">No attendance records logged for today yet.</p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Right Side: Action approval logs -->
+        <div class="space-y-6">
+          
+          <!-- Device Whitelists Card -->
+          <div class="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-xl">
+            <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <h2 class="font-bold text-white text-md">Whitelisting Requests</h2>
+              <span class="text-xs bg-red-950 text-red-400 px-2 py-0.5 rounded border border-red-900 font-semibold" id="deviceRequestCount">
+                {{ pending_devices|length }}
+              </span>
+            </div>
+            <div class="p-4 space-y-4 max-h-[350px] overflow-y-auto" id="deviceRequestsList">
+              {% for dev in pending_devices %}
+              <div id="device-row-{{ dev.pk }}" class="bg-gray-850 border border-gray-800 rounded-2xl p-4 space-y-3 transition duration-350">
+                <div>
+                  <p class="font-bold text-white text-sm">{{ dev.registered_for.name }}</p>
+                  <p class="text-xs text-gray-400 mt-0.5">{{ dev.device_name }}</p>
+                  <code class="text-[10px] text-brand-500 bg-gray-900 px-1.5 py-0.5 rounded font-mono block mt-1 w-max">{{ dev.device_fingerprint }}</code>
+                </div>
+                <div class="flex gap-2 border-t border-gray-800 pt-2">
+                  <button onclick="approveDevice({{ dev.pk }})" class="flex-1 bg-green-600 hover:bg-green-500 text-white text-xs font-semibold py-1.5 rounded-lg transition">Whitelist</button>
+                  <button onclick="rejectDevice({{ dev.pk }})" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-455 text-xs font-semibold py-1.5 rounded-lg transition">Deny</button>
+                </div>
+              </div>
+              {% empty %}
+              <div class="text-center py-8 text-gray-650 text-xs italic" id="noDevicesMsg">No whitelisting requests pending.</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Leave Applications Card -->
+          <div class="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-xl">
+            <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <h2 class="font-bold text-white text-md">Leave Applications</h2>
+              <span class="text-xs bg-orange-950 text-orange-400 px-2 py-0.5 rounded border border-orange-900 font-semibold" id="leaveRequestCount">
+                {{ pending_leaves|length }}
+              </span>
+            </div>
+            <div class="p-4 space-y-4 max-h-[350px] overflow-y-auto" id="leaveRequestsList">
+              {% for leave in pending_leaves %}
+              <div id="leave-row-{{ leave.pk }}" class="bg-gray-850 border border-gray-800 rounded-2xl p-4 space-y-3 transition duration-350">
+                <div>
+                  <p class="font-bold text-white text-sm">{{ leave.employee.name }}</p>
+                  <p class="text-xs text-gray-400 mt-0.5">{{ leave.leave_date|date:"l, d F" }}</p>
+                  <span class="inline-block text-[10px] font-bold text-brand-500 border border-brand-900 bg-brand-950/40 px-2 py-0.5 rounded mt-1">
+                    {{ leave.get_leave_type_display }}
+                  </span>
+                  {% if leave.remarks %}
+                    <p class="text-xs text-gray-500 italic mt-2 border-l border-gray-700 pl-2">"{{ leave.remarks }}"</p>
+                  {% endif %}
+                </div>
+                <div class="flex gap-2 border-t border-gray-800 pt-2">
+                  <button onclick="approveLeave({{ leave.pk }})" class="flex-1 bg-green-600 hover:bg-green-500 text-white text-xs font-semibold py-1.5 rounded-lg transition">Approve</button>
+                  <button onclick="rejectLeave({{ leave.pk }})" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-455 text-xs font-semibold py-1.5 rounded-lg transition">Reject</button>
+                </div>
+              </div>
+              {% empty %}
+              <div class="text-center py-8 text-gray-650 text-xs italic" id="noLeavesMsg">No leave applications pending.</div>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: EMPLOYEE DIRECTORY                  -->
+    <!-- ========================================== -->
+    <div id="tabContent-directory" class="tab-pane hidden space-y-6">
+      
+      <!-- Header with search -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-extrabold text-white tracking-tight">Employee Directory</h1>
+          <p class="text-xs text-gray-400">Total staff profiles: {{ employees|length }}</p>
+        </div>
+        <div class="w-full sm:max-w-xs">
+          <input type="text" id="employeeSearchInput" oninput="filterEmployees(this.value)" placeholder="🔍 Search employee name or ID..."
+                 class="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500 transition">
+        </div>
+      </div>
+
+      <!-- Employee grid list -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="employeeCardsGrid">
+        {% for emp in employees %}
+        <div class="employee-card bg-gray-900 border border-gray-850 hover:border-brand-500/40 rounded-3xl p-5 shadow-lg flex flex-col justify-between transition duration-200" 
+             data-name="{{ emp.name|lower }}" data-code="{{ emp.employee_code|lower }}">
+          <div class="flex gap-4 items-start mb-4">
+            <div class="w-12 h-12 rounded-2xl overflow-hidden bg-gray-800 border border-gray-700 flex-shrink-0 flex items-center justify-center">
+              {% if emp.profile_photo %}
+                <img src="{{ emp.profile_photo }}" class="w-full h-full object-cover" alt="">
+              {% else %}
+                <span class="text-lg font-bold text-gray-500">{{ emp.name|slice:":2"|upper }}</span>
+              {% endif %}
+            </div>
+            <div>
+              <p class="font-bold text-white text-md">{{ emp.name }}</p>
+              <p class="text-xs text-brand-500 font-semibold">{{ emp.designation }}</p>
+              <code class="text-[10px] text-gray-500 font-mono mt-0.5 block">{{ emp.employee_code }}</code>
+            </div>
+          </div>
+          <div class="border-t border-gray-850 pt-3 flex items-center justify-between">
+            <span class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full 
+              {% if emp.status == 'active' %}bg-green-950 text-green-400 border border-green-900
+              {% else %}bg-gray-850 text-gray-500 border border-gray-800{% endif %}">
+              {{ emp.get_status_display }}
+            </span>
+            <button onclick="openEmployeeModal({{ emp.pk }})" 
+                    class="bg-gray-800 hover:bg-gray-700 text-white font-medium text-xs px-3.5 py-1.5 rounded-lg border border-gray-700 transition">
+              View History &rarr;
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: PAYROLL SHEETS & REPORTS           -->
+    <!-- ========================================== -->
+    <div id="tabContent-payroll" class="tab-pane hidden space-y-6">
+      
+      <!-- Filters header block -->
+      <div class="bg-gray-900 border border-gray-800 rounded-3xl p-5 flex flex-wrap gap-4 items-end justify-between no-print">
+        <div>
+          <h2 class="font-bold text-white text-lg">Monthly Payroll Statement</h2>
+          <p class="text-xs text-gray-450 mt-0.5">Calculates working days, leaves, unpaid absents, and net pay.</p>
+        </div>
+        
+        <!-- Period selection form -->
+        <form method="get" class="flex items-end gap-3">
+          <!-- Force tab choice in get query -->
+          <input type="hidden" name="tab" value="payroll">
+          <div>
+            <label class="block text-[10px] text-gray-500 font-semibold uppercase mb-1">Select Month</label>
+            <select name="month" class="bg-gray-850 border border-gray-750 rounded-xl px-3 py-2 text-sm font-semibold text-white focus:outline-none">
+              {% for num, label in months_choices %}
+              <option value="{{ num }}" {% if num == selected_month %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] text-gray-500 font-semibold uppercase mb-1">Select Year</label>
+            <select name="year" class="bg-gray-850 border border-gray-750 rounded-xl px-3 py-2 text-sm font-semibold text-white focus:outline-none">
+              {% for yr in years_choices %}
+              <option value="{{ yr }}" {% if yr == selected_year %}selected{% endif %}>{{ yr }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm px-4 py-2 rounded-xl transition">
+            Apply Filters
+          </button>
+          <button type="button" onclick="window.print()" class="bg-gray-800 hover:bg-gray-750 text-white font-semibold text-sm px-4 py-2 rounded-xl border border-gray-700 transition">
+            🖨️ Print Sheet
+          </button>
+        </form>
+      </div>
+
+      <!-- Printable Payroll Area -->
+      <div id="printArea" class="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-xl p-6 space-y-6">
+        
+        <!-- Print Letterhead Header -->
+        <div class="flex justify-between items-start border-b border-gray-850 pb-5">
+          <div>
+            <h1 class="text-xl font-black text-white uppercase tracking-wider">Jai Fancy Packs</h1>
+            <p class="text-xs text-gray-400">Selvapuram, Coimbatore, Tamil Nadu</p>
+            <p class="text-xs text-gray-500 mt-1 font-mono">Statement Period: {{ selected_month|stringformat:"02d" }}/{{ selected_year }}</p>
+          </div>
+          <div class="text-right">
+            <span class="text-xs bg-brand-500/20 text-brand-500 border border-brand-900/60 px-3 py-1 rounded-full font-bold uppercase">Payroll Report</span>
+            <p class="text-[10px] text-gray-500 mt-2 font-mono">Generated: {% now "d M Y H:i" %}</p>
+          </div>
+        </div>
+
+        <!-- Payroll Statement Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead>
+              <tr class="border-b border-gray-800 bg-gray-900/60 text-gray-500 font-semibold text-xs uppercase tracking-wider">
+                <th class="py-3 px-4">Employee</th>
+                <th class="py-3 px-4">Salary Class</th>
+                <th class="py-3 px-4 text-center">Worked (P/L)</th>
+                <th class="py-3 px-4 text-center">Half Days</th>
+                <th class="py-3 px-4 text-center">Paid Leaves</th>
+                <th class="py-3 px-4 text-center">Unpaid Days</th>
+                <th class="py-3 px-4 text-right">Base salary</th>
+                <th class="py-3 px-4 text-right">Net Payout</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-850">
+              {% for p in payroll_data %}
+              <tr class="hover:bg-gray-800/10 text-gray-300">
+                <td class="py-3.5 px-4">
+                  <div class="font-bold text-white">{{ p.employee.name }}</div>
+                  <div class="text-[10px] text-gray-550 font-mono">{{ p.employee.employee_code }} | {{ p.employee.designation }}</div>
+                </td>
+                <td class="py-3.5 px-4 text-xs font-semibold capitalize">{{ p.employee.get_salary_type_display }}</td>
+                <td class="py-3.5 px-4 text-center font-semibold text-green-400">
+                  {{ p.present|add:p.late }}
+                </td>
+                <td class="py-3.5 px-4 text-center text-orange-400 font-semibold">{{ p.half_day }}</td>
+                <td class="py-3.5 px-4 text-center text-blue-400 font-semibold">{{ p.paid_leaves_used|floatformat:1 }}</td>
+                <td class="py-3.5 px-4 text-center text-red-500 font-semibold">{{ p.unpaid_days|floatformat:1 }}</td>
+                <td class="py-3.5 px-4 text-right font-mono text-xs">₹{{ p.base_salary|floatformat:0 }}</td>
+                <td class="py-3.5 px-4 text-right font-bold text-white font-mono text-sm">
+                  ₹{{ p.net_payout|floatformat:2 }}
+                  <span class="block text-[9px] text-gray-500 font-normal mt-0.5 no-print">{{ p.details }}</span>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="8" class="text-center py-10 text-gray-500 italic">No employees configured.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Sign-off Block for Printouts -->
+        <div class="hidden print:flex justify-between mt-20 text-xs border-t border-gray-800 pt-10">
+          <div>
+            <p class="font-semibold text-gray-400">Prepared By: __________________</p>
+          </div>
+          <div>
+            <p class="font-semibold text-gray-400">Approved By JFP Admin: __________________</p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- EMPLOYEE HISTORY DETAIL MODAL              -->
+  <!-- ========================================== -->
+  <div id="employeeModal" class="fixed inset-0 z-50 hidden bg-black/85 flex items-center justify-center p-4 no-print">
+    <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col justify-between shadow-2xl">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-gray-800 flex items-center justify-between bg-gray-900">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl overflow-hidden bg-gray-800 border border-gray-700 flex items-center justify-center">
+            <img id="mPhoto" class="hidden w-full h-full object-cover" src="" alt="">
+            <span id="mFallback" class="text-lg font-bold text-gray-500"></span>
+          </div>
+          <div>
+            <h2 class="font-bold text-white text-lg" id="mName">Name</h2>
+            <p class="text-xs text-brand-500 font-semibold" id="mDesignation">Designation</p>
+          </div>
+        </div>
+        <button onclick="closeEmployeeModal()" class="text-gray-400 hover:text-white text-xl font-bold p-1 bg-gray-800/50 hover:bg-gray-850 rounded-lg w-8 h-8 flex items-center justify-center transition">✕</button>
+      </div>
+
+      <!-- Modal Body (Scrollable Split content) -->
+      <div class="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Left Sub-column: Info details -->
+        <div class="space-y-5">
+          
+          <!-- Code, Mobile, Address -->
+          <div class="bg-gray-850 border border-gray-800 rounded-2xl p-4 space-y-3.5 text-sm">
+            <div>
+              <span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider">Employee ID</span>
+              <p class="font-bold text-white font-mono" id="mCode">JFP001</p>
+            </div>
+            <div>
+              <span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider">Mobile</span>
+              <p class="font-semibold text-white" id="mMobile">Mobile</p>
+            </div>
+            <div>
+              <span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider">Joining Date</span>
+              <p class="font-semibold text-white" id="mJoining">Joining</p>
+            </div>
+            <div>
+              <span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider">Salary Configuration</span>
+              <p class="font-bold text-white" id="mSalary">Monthly: ₹20,000</p>
+            </div>
+            <div>
+              <span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider">Address</span>
+              <p class="text-xs text-gray-300 leading-relaxed whitespace-pre-line" id="mAddress">Address</p>
+            </div>
+          </div>
+
+          <!-- Leave Balance block -->
+          <div class="bg-gray-850 border border-gray-800 rounded-2xl p-4 space-y-3">
+            <h3 class="font-bold text-white text-xs uppercase tracking-wider border-b border-gray-800 pb-2">Paid Leave Balance (Year)</h3>
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="bg-gray-900/60 p-2 rounded-xl border border-gray-800/80">
+                <span class="text-[10px] text-gray-500 block leading-tight">Credited</span>
+                <span class="font-bold text-sm text-white" id="mLeavesCredited">0</span>
+              </div>
+              <div class="bg-gray-900/60 p-2 rounded-xl border border-gray-800/80">
+                <span class="text-[10px] text-gray-500 block leading-tight">Used</span>
+                <span class="font-bold text-sm text-red-400" id="mLeavesUsed">0</span>
+              </div>
+              <div class="bg-gray-900/60 p-2 rounded-xl border border-gray-800/80">
+                <span class="text-[10px] text-gray-500 block leading-tight">Balance</span>
+                <span class="font-bold text-sm text-green-400" id="mLeavesRemaining">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Whitelisted Devices -->
+          <div class="bg-gray-850 border border-gray-800 rounded-2xl p-4">
+            <h3 class="font-bold text-white text-xs uppercase tracking-wider border-b border-gray-800 pb-2 mb-2">Approved Devices</h3>
+            <div class="space-y-2 text-xs" id="mDevices">
+              <!-- Filled dynamically -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Sub-column: Table & Logs (2/3 width) -->
+        <div class="md:col-span-2 space-y-5">
+          
+          <!-- Attendance Log Section -->
+          <div class="bg-gray-850 border border-gray-800 rounded-2xl overflow-hidden">
+            <div class="px-4 py-3 bg-gray-900/40 border-b border-gray-800">
+              <h3 class="font-bold text-white text-xs uppercase tracking-wider">Recent 30 Attendance Logs</h3>
+            </div>
+            <div class="overflow-x-auto max-h-[300px]">
+              <table class="w-full text-left text-xs">
+                <thead class="sticky top-0 bg-gray-900 text-gray-550 border-b border-gray-800 uppercase text-[10px] tracking-wider font-semibold">
+                  <tr>
+                    <th class="py-2.5 px-3">Date</th>
+                    <th class="py-2.5 px-3">In</th>
+                    <th class="py-2.5 px-3">Out</th>
+                    <th class="py-2.5 px-3">Hours</th>
+                    <th class="py-2.5 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/50" id="mAttendanceTable">
+                  <!-- Filled dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Salary Logs Section -->
+          <div class="bg-gray-850 border border-gray-800 rounded-2xl overflow-hidden">
+            <div class="px-4 py-3 bg-gray-900/40 border-b border-gray-800">
+              <h3 class="font-bold text-white text-xs uppercase tracking-wider">Salary History & Changes</h3>
+            </div>
+            <div class="p-3 text-xs space-y-2 max-h-[150px] overflow-y-auto" id="mSalaryHistory">
+              <!-- Filled dynamically -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 border-t border-gray-800 bg-gray-900 flex justify-end gap-2">
+        <a href="" id="mAdminLink" class="bg-gray-850 hover:bg-gray-800 text-white text-xs font-semibold px-4 py-2 rounded-xl border border-gray-700 transition">
+          ⚙️ Edit in database admin
+        </a>
+        <button onclick="closeEmployeeModal()" class="bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold px-5 py-2 rounded-xl transition">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- ABSENT EMPLOYEES MODAL                     -->
+  <!-- ========================================== -->
+  <div id="absentModal" class="fixed inset-0 z-50 hidden bg-black/85 flex items-center justify-center p-4 no-print">
+    <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-md overflow-hidden flex flex-col justify-between shadow-2xl">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-gray-800 flex items-center justify-between bg-gray-900">
+        <h2 class="font-bold text-white text-md">Absent Employees Today ({{ absent_employees|length }})</h2>
+        <button onclick="closeAbsentModal()" class="text-gray-400 hover:text-white text-lg font-bold p-1 bg-gray-800/50 hover:bg-gray-850 rounded-lg w-8 h-8 flex items-center justify-center transition">✕</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto max-h-[60vh] space-y-3">
+        {% for emp in absent_employees %}
+        <div class="flex items-center justify-between bg-gray-850 border border-gray-800 rounded-2xl p-3.5">
+          <div class="flex items-center gap-3">
+            {% if emp.profile_photo %}
+              <img src="{{ emp.profile_photo }}" class="w-9 h-9 rounded-lg object-cover" alt="">
+            {% else %}
+              <div class="w-9 h-9 rounded-lg bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-500">
+                {{ emp.name|slice:":2"|upper }}
+              </div>
+            {% endif %}
+            <div>
+              <p class="font-bold text-white text-sm leading-tight">{{ emp.name }}</p>
+              <p class="text-xs text-gray-400 mt-0.5">{{ emp.designation }} &bull; {{ emp.employee_code }}</p>
+            </div>
+          </div>
+          <button onclick="closeAbsentModal(); openEmployeeModal({{ emp.pk }})" 
+                  class="bg-gray-800 hover:bg-gray-700 text-white font-semibold text-xs px-3 py-1.5 rounded-lg border border-gray-700 transition">
+            View
+          </button>
+        </div>
+        {% empty %}
+        <div class="text-center py-8 text-gray-600 text-xs italic">
+          No absent employees today! 🎉
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 border-t border-gray-800 bg-gray-900 flex justify-end">
+        <button onclick="closeAbsentModal()" class="bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold px-5 py-2 rounded-xl transition">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="text-center text-xs text-gray-700 py-6 border-t border-gray-900 mt-10 no-print">
+    Jai Fancy Packs &mdash; Operations Control Centre &copy; 2026
+  </footer>
+
+  <script>
+    // --- Initial Tab Routing based on URL param ---
+    document.addEventListener("DOMContentLoaded", () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const activeTab = urlParams.get('tab') || 'feed';
+      switchTab(activeTab);
+    });
+
+    // --- Tab Switcher ---
+    function switchTab(tabId) {
+      // Hide all panes
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
+      // Show chosen pane
+      document.getElementById(`tabContent-${tabId}`).classList.remove('hidden');
+
+      // Update Tab Styles (Desktop)
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.className = 'tab-btn px-4 py-1.5 rounded-lg text-sm font-semibold text-gray-400 hover:text-white transition';
+      });
+      const activeBtn = document.getElementById(`tabBtn-${tabId}`);
+      if (activeBtn) activeBtn.className = 'tab-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition bg-brand-500 text-white';
+
+      // Update Tab Styles (Mobile)
+      document.querySelectorAll('.md\\:hidden button').forEach(btn => {
+        btn.className = 'flex-1 text-center py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition';
+      });
+      const activeMBtn = document.getElementById(`mTabBtn-${tabId}`);
+      if (activeMBtn) activeMBtn.className = 'flex-1 text-center py-2 text-xs font-bold rounded-lg bg-brand-500 text-white transition';
+    }
+
+    // --- Employee Directory Client-side Filtering ---
+    function filterEmployees(query) {
+      const searchStr = query.toLowerCase().trim();
+      document.querySelectorAll('.employee-card').forEach(card => {
+        const name = card.getAttribute('data-name');
+        const code = card.getAttribute('data-code');
+        if (name.includes(searchStr) || code.includes(searchStr)) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    }
+
+    // --- AJAX Approval Actions ---
+    async function approveDevice(id) {
+      const res = await fetch(`/employee/admin-dashboard/device/${id}/approve/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+      });
+      const data = await res.json();
+      if (data.success) { showToast(data.message, true); removeRow('device', id); } 
+      else { showToast(data.message, false); }
+    }
+
+    async function rejectDevice(id) {
+      const res = await fetch(`/employee/admin-dashboard/device/${id}/reject/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+      });
+      const data = await res.json();
+      if (data.success) { showToast('Device rejected.', true); removeRow('device', id); } 
+      else { showToast(data.message, false); }
+    }
+
+    async function approveLeave(id) {
+      const res = await fetch(`/employee/admin-dashboard/leave/${id}/approve/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+      });
+      const data = await res.json();
+      if (data.success) { showToast(data.message, true); removeRow('leave', id); } 
+      else { showToast(data.message, false); }
+    }
+
+    async function rejectLeave(id) {
+      const res = await fetch(`/employee/admin-dashboard/leave/${id}/reject/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+      });
+      const data = await res.json();
+      if (data.success) { showToast(data.message, true); removeRow('leave', id); } 
+      else { showToast(data.message, false); }
+    }
+
+    function removeRow(type, id) {
+      const row = document.getElementById(`${type}-row-${id}`);
+      if (!row) return;
+      row.classList.add('fade-out');
+      setTimeout(() => {
+        row.remove();
+        const badge = document.getElementById(`${type}RequestCount`);
+        let count = Math.max(0, parseInt(badge.textContent.trim()) - 1);
+        badge.textContent = count;
+        if (count === 0) {
+          document.getElementById(`${type}RequestsList`).innerHTML = `<div class="text-center py-8 text-gray-650 text-xs italic">No requests pending.</div>`;
+        }
+      }, 500);
+    }
+
+    // --- EMPLOYEE HISTORICAL DETAILS MODAL ---
+    async function openEmployeeModal(empId) {
+      const modal = document.getElementById('employeeModal');
+      
+      // Clear previous inputs & show loading indicators
+      document.getElementById('mName').textContent = 'Loading profile...';
+      document.getElementById('mDesignation').textContent = 'Please wait';
+      document.getElementById('mCode').textContent = '—';
+      document.getElementById('mMobile').textContent = '—';
+      document.getElementById('mJoining').textContent = '—';
+      document.getElementById('mSalary').textContent = '—';
+      document.getElementById('mAddress').textContent = 'Loading...';
+      document.getElementById('mLeavesCredited').textContent = '—';
+      document.getElementById('mLeavesUsed').textContent = '—';
+      document.getElementById('mLeavesRemaining').textContent = '—';
+      document.getElementById('mDevices').innerHTML = '<p class="text-gray-600 italic">Loading registered devices...</p>';
+      document.getElementById('mAttendanceTable').innerHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-600 italic">Retrieving attendance logs...</td></tr>';
+      document.getElementById('mSalaryHistory').innerHTML = '<p class="text-gray-600 italic">Retrieving salary records...</p>';
+      
+      const photo = document.getElementById('mPhoto');
+      const fallback = document.getElementById('mFallback');
+      photo.classList.add('hidden');
+      fallback.classList.add('hidden');
+      
+      modal.classList.remove('hidden');
+
+      try {
+        const res = await fetch(`/employee/admin-dashboard/employee/${empId}/details/`);
+        const data = await res.json();
+        if (data.success) {
+          // Photo
+          const photo = document.getElementById('mPhoto');
+          const fallback = document.getElementById('mFallback');
+          if (data.employee.profile_photo) {
+            photo.src = data.employee.profile_photo;
+            photo.classList.remove('hidden');
+            fallback.classList.add('hidden');
+          } else {
+            fallback.textContent = data.employee.name.slice(0,2).toUpperCase();
+            fallback.classList.remove('hidden');
+            photo.classList.add('hidden');
+          }
+
+          // Header
+          document.getElementById('mName').textContent = data.employee.name;
+          document.getElementById('mDesignation').textContent = `${data.employee.designation} (${data.employee.status})`;
+          
+          // Details
+          document.getElementById('mCode').textContent = data.employee.code;
+          document.getElementById('mMobile').textContent = data.employee.mobile;
+          document.getElementById('mJoining').textContent = formatDate(data.employee.joining_date);
+          document.getElementById('mSalary').textContent = `${data.employee.salary_type}: ₹${data.employee.monthly_salary.toLocaleString('en-IN')}`;
+          document.getElementById('mAddress').textContent = data.employee.address || 'No address provided';
+
+          // Leave Balance
+          document.getElementById('mLeavesCredited').textContent = data.leave_balance.credited;
+          document.getElementById('mLeavesUsed').textContent = data.leave_balance.used;
+          document.getElementById('mLeavesRemaining').textContent = data.leave_balance.remaining;
+
+          // Edit admin link
+          document.getElementById('mAdminLink').href = `/admin/attendance/employee/${data.employee.id}/change/`;
+
+          // Whitelisted Devices
+          const devContainer = document.getElementById('mDevices');
+          if (data.devices.length > 0) {
+            devContainer.innerHTML = data.devices.map(d => `
+              <div class="flex justify-between items-center bg-gray-900 p-2 rounded-lg border border-gray-800">
+                <div>
+                  <p class="font-bold text-white">${d.device_name}</p>
+                  <code class="text-[9px] text-gray-500 font-mono">${d.device_fingerprint}</code>
+                </div>
+                <span class="text-[9px] px-1.5 py-0.5 rounded font-bold ${d.is_active ? 'bg-green-950 text-green-400' : 'bg-gray-800 text-gray-400'}">${d.is_active ? 'Approved' : 'Pending'}</span>
+              </div>
+            `).join('');
+          } else {
+            devContainer.innerHTML = '<p class="text-gray-600 italic">No devices registered.</p>';
+          }
+
+          // Recent Attendance Table
+          const table = document.getElementById('mAttendanceTable');
+          if (data.attendance.length > 0) {
+            table.innerHTML = data.attendance.map(r => `
+              <tr class="hover:bg-gray-800/20">
+                <td class="py-2 px-3 font-semibold text-white">${formatDate(r.date)}</td>
+                <td class="py-2 px-3">${r.punch_in}</td>
+                <td class="py-2 px-3">${r.punch_out}</td>
+                <td class="py-2 px-3">${r.working_hours}</td>
+                <td class="py-2 px-3">
+                  <span class="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded
+                    ${r.status === 'Present' || r.status === 'Late' ? 'bg-green-950 text-green-400' : 
+                      r.status === 'Half Day' ? 'bg-orange-950 text-orange-400' : 'bg-red-950 text-red-400'}">
+                    ${r.status}
+                  </span>
+                </td>
+              </tr>
+            `).join('');
+          } else {
+            table.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-600 italic">No attendance history found.</td></tr>';
+          }
+
+          // Salary logs list
+          const salaryLogs = document.getElementById('mSalaryHistory');
+          if (data.salary_history.length > 0) {
+            salaryLogs.innerHTML = data.salary_history.map(s => `
+              <div class="flex justify-between items-center bg-gray-900/50 p-2 rounded border border-gray-800/80">
+                <span class="text-gray-400 font-medium">${formatDate(s.effective_from)}</span>
+                <span class="font-bold text-white">₹${s.monthly_salary.toLocaleString('en-IN')} (${s.salary_type})</span>
+              </div>
+            `).join('');
+          } else {
+            salaryLogs.innerHTML = '<p class="text-gray-600 italic">No salary changes recorded.</p>';
+          }
+        }
+      } catch (err) {
+        showToast('Error loading employee profile details.', false);
+      }
+    }
+
+    function closeEmployeeModal() {
+      document.getElementById('employeeModal').classList.add('hidden');
+    }
+
+    function openAbsentModal() {
+      document.getElementById('absentModal').classList.remove('hidden');
+    }
+
+    function closeAbsentModal() {
+      document.getElementById('absentModal').classList.add('hidden');
+    }
+
+    function formatDate(dateStr) {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function showToast(message, isSuccess) {
+      const toast = document.getElementById('toast');
+      const icon = document.getElementById('toastIcon');
+      const text = document.getElementById('toastText');
+      icon.textContent = isSuccess ? '✅' : '❌';
+      text.textContent = message;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.remove('translate-y-10', 'opacity-0'), 50);
+      setTimeout(() => {
+        toast.classList.add('translate-y-10', 'opacity-0');
+        setTimeout(() => toast.classList.add('hidden'), 300);
+      }, 3000);
+    }
+
+    function getCookie(name) {
+      return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='))?.split('=')[1] ?? '';
+    }
+  </script>
+
+</body>
+</html>
