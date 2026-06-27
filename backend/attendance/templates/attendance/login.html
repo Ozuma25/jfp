@@ -57,6 +57,9 @@
           >
         </div>
 
+        <!-- Hidden device fingerprint input -->
+        <input type="hidden" name="device_fingerprint" id="loginFingerprint">
+
         <!-- Submit -->
         <button type="submit"
                 class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-3 rounded-xl
@@ -72,4 +75,14 @@
     </p>
   </div>
 </div>
+
+<script>
+function getDeviceFingerprint() {
+  const raw = [navigator.userAgent, navigator.language, screen.width, screen.height].join('|');
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) { hash = ((hash << 5) - hash) + raw.charCodeAt(i); hash |= 0; }
+  return Math.abs(hash).toString(16).padStart(8, '0');
+}
+document.getElementById('loginFingerprint').value = getDeviceFingerprint();
+</script>
 {% endblock %}

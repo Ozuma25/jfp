@@ -187,10 +187,21 @@ class RegisteredDeviceAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "browser", "os")
     search_fields = ("device_fingerprint", "device_name", "registered_for__name")
     readonly_fields = ("registered_at",)
+    actions = ["approve_devices", "deactivate_devices"]
 
     def fingerprint_short(self, obj):
         return f"{obj.device_fingerprint[:16]}…"
     fingerprint_short.short_description = "Fingerprint"
+
+    def approve_devices(self, request, queryset):
+        count = queryset.update(is_active=True)
+        self.message_user(request, f"Successfully approved/activated {count} device(s).")
+    approve_devices.short_description = "✅ Whitelist/Approve selected devices"
+
+    def deactivate_devices(self, request, queryset):
+        count = queryset.update(is_active=False)
+        self.message_user(request, f"Successfully deactivated/blocked {count} device(s).")
+    deactivate_devices.short_description = "❌ Block/Deactivate selected devices"
 
 
 # ---------------------------------------------------------------------------

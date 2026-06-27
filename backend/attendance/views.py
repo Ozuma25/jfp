@@ -115,6 +115,22 @@ def employee_login(request):
         request.session["employee_code"] = employee.employee_code
         request.session.set_expiry(0)  # expires on browser close
 
+        device_fingerprint = request.POST.get("device_fingerprint", "").strip()
+        if device_fingerprint:
+            request.session["device_fingerprint"] = device_fingerprint
+            device_info = get_device_info(request)
+            RegisteredDevice.objects.get_or_create(
+                device_fingerprint=device_fingerprint,
+                defaults={
+                    "device_name": f"{device_info['device_name']} ({employee.name})",
+                    "browser": device_info["browser"],
+                    "os": device_info["os"],
+                    "registered_for": employee,
+                    "is_active": False,  # Awaiting Admin Approval
+                    "notes": f"Auto-enrolled on login by {employee.name}."
+                }
+            )
+
         AuditLog.objects.create(
             actor=employee.employee_code,
             action="LOGIN",
@@ -157,12 +173,21 @@ def employee_dashboard(request):
     else:
         greeting = "Good Evening"
 
+    current_fp = request.session.get("device_fingerprint")
+    is_device_approved = True
+    if settings.latitude != 0.0 and current_fp:
+        is_device_approved = RegisteredDevice.objects.filter(
+            device_fingerprint=current_fp, is_active=True
+        ).exists()
+
     context = {
         "employee": request.employee,
         "data": data,
         "office": settings,
         "is_working_day": is_working_day(today),
         "greeting": greeting,
+        "is_device_approved": is_device_approved,
+        "device_fingerprint": current_fp,
     }
     return render(request, "attendance/dashboard.html", context)
 
@@ -219,7 +244,7 @@ def punch_in_submit(request):
     # Device check
     settings = OfficeSettings.get_settings()
     if settings.latitude != 0.0:
-        if device_fp and not RegisteredDevice.objects.filter(
+        if not device_fp or not RegisteredDevice.objects.filter(
             device_fingerprint=device_fp, is_active=True
         ).exists():
             return JsonResponse(
@@ -301,6 +326,17 @@ def punch_out_submit(request):
     lng = body.get("longitude")
     accuracy = body.get("accuracy")
     device_fp = body.get("device_fingerprint", "")
+
+    # Device check
+    settings = OfficeSettings.get_settings()
+    if settings.latitude != 0.0:
+        if not device_fp or not RegisteredDevice.objects.filter(
+            device_fingerprint=device_fp, is_active=True
+        ).exists():
+            return JsonResponse(
+                {"success": False, "message": "Unauthorized device. Please contact admin."},
+                status=403,
+            )
 
     photo_url = ""
     if photo_b64:

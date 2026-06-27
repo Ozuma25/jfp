@@ -72,21 +72,33 @@
 
   <!-- Action Buttons -->
   {% if is_working_day %}
-  <div class="flex gap-3 mt-5">
-    {% if not data.today or not data.today.punch_in %}
-    <a href="{% url 'attendance:punch_in' %}"
-       class="flex-1 text-center bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition transform active:scale-95">
-      ✅ Punch In
-    </a>
-    {% elif data.today and not data.today.punch_out %}
-    <a href="{% url 'attendance:punch_out' %}"
-       class="flex-1 text-center bg-red-600 hover:bg-red-500 text-white font-semibold py-3 rounded-xl transition transform active:scale-95">
-      🔴 Punch Out
-    </a>
+  <div class="mt-5">
+    {% if not is_device_approved %}
+      <div class="bg-red-950/60 border border-red-800 rounded-xl p-4 flex items-center gap-3">
+        <div class="text-xl">📱</div>
+        <div class="flex-1 text-sm text-red-200">
+          <p class="font-bold">Device Pending Approval</p>
+          <p class="text-xs text-red-400 mt-0.5">This device (Fingerprint: <code class="bg-red-900/60 px-1.5 py-0.5 rounded font-mono select-all text-white">{{ device_fingerprint }}</code>) is awaiting Admin whitelist approval. You cannot punch from this device.</p>
+        </div>
+      </div>
     {% else %}
-    <div class="flex-1 text-center bg-gray-800 text-gray-500 font-medium py-3 rounded-xl cursor-not-allowed">
-      ✅ Attendance Complete
-    </div>
+      <div class="flex gap-3">
+        {% if not data.today or not data.today.punch_in %}
+        <a href="{% url 'attendance:punch_in' %}"
+           class="flex-1 text-center bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition transform active:scale-95">
+          ✅ Punch In
+        </a>
+        {% elif data.today and not data.today.punch_out %}
+        <a href="{% url 'attendance:punch_out' %}"
+           class="flex-1 text-center bg-red-600 hover:bg-red-500 text-white font-semibold py-3 rounded-xl transition transform active:scale-95">
+          🔴 Punch Out
+        </a>
+        {% else %}
+        <div class="flex-1 text-center bg-gray-800 text-gray-500 font-medium py-3 rounded-xl cursor-not-allowed">
+          ✅ Attendance Complete
+        </div>
+        {% endif %}
+      </div>
     {% endif %}
   </div>
   {% endif %}
