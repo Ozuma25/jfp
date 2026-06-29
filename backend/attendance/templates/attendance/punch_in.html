@@ -155,7 +155,7 @@ function checkReady() {
 
 function getDeviceFingerprint() {
   const nav = window.navigator;
-  const raw = [nav.userAgent, nav.language, screen.width, screen.height, nav.hardwareConcurrency].join('|');
+  const raw = [nav.userAgent, nav.language, screen.width, screen.height].join('|');
   let hash = 0;
   for (let i = 0; i < raw.length; i++) { hash = ((hash << 5) - hash) + raw.charCodeAt(i); hash |= 0; }
   return Math.abs(hash).toString(16).padStart(8, '0');
