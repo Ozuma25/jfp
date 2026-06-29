@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#050510">
   <title>{% block title %}JFP Employee Portal{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -10,76 +14,304 @@
       theme: {
         extend: {
           colors: {
-            brand: { 50:'#fff7ed', 100:'#ffedd5', 500:'#f97316', 600:'#ea580c', 700:'#c2410c', 900:'#7c2d12' },
-          }
+            brand: { 50:'#fff7ed', 100:'#ffedd5', 400:'#fb923c', 500:'#f97316', 600:'#ea580c', 700:'#c2410c', 900:'#7c2d12' },
+          },
+          screens: { xs: '375px' },
+          backdropBlur: { xs: '2px' },
         }
       }
     }
   </script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; }
-    .status-PRESENT  { @apply bg-green-100 text-green-800; }
-    .status-LATE     { @apply bg-yellow-100 text-yellow-800; }
-    .status-HALF_DAY { @apply bg-orange-100 text-orange-800; }
-    .status-ABSENT   { @apply bg-red-100 text-red-800; }
-    .status-INCOMPLETE { @apply bg-gray-100 text-gray-700; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior-y: none;
+      min-height: 100vh;
+      background: #080816;
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated Background ── */
+    .bg-scene {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 90% 70% at 10% 10%, rgba(249,115,22,0.20) 0%, transparent 60%),
+        radial-gradient(ellipse 80% 60% at 85% 90%, rgba(139,92,246,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 50% 50%, rgba(6,182,212,0.12) 0%, transparent 65%),
+        linear-gradient(135deg, #070714 0%, #0d0d26 50%, #08081a 100%);
+    }
+
+    /* Floating orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      animation: drift 15s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+    .orb-1 {
+      width: 380px; height: 380px;
+      background: rgba(249,115,22,0.25);
+      top: -100px; left: -80px;
+      animation-delay: 0s;
+    }
+    .orb-2 {
+      width: 340px; height: 340px;
+      background: rgba(139,92,246,0.22);
+      bottom: 5%; right: -80px;
+      animation-delay: -5s;
+    }
+    .orb-3 {
+      width: 250px; height: 250px;
+      background: rgba(6,182,212,0.18);
+      top: 35%; left: 25%;
+      animation-delay: -10s;
+    }
+    @keyframes drift {
+      0%   { transform: translate(0, 0) scale(1); }
+      50%  { transform: translate(40px, -30px) scale(1.1); }
+      100% { transform: translate(-30px, 40px) scale(0.9); }
+    }
+
+    /* ── Glass utilities ── */
+    .glass {
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+    .glass-strong {
+      background: rgba(255, 255, 255, 0.10);
+      backdrop-filter: blur(20px) saturate(200%);
+      -webkit-backdrop-filter: blur(20px) saturate(200%);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+    .glass-dark {
+      background: rgba(0, 0, 0, 0.40);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+    }
+    .glass-input {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f8fafc;
+      transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    }
+    .glass-input:focus {
+      outline: none;
+      border-color: rgba(249,115,22,0.6);
+      box-shadow: 0 0 0 3px rgba(249,115,22,0.15);
+    }
+    .glass-btn {
+      background: rgba(255,255,255,0.07);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.12);
+      transition: background 0.2s, border-color 0.2s, transform 0.1s;
+    }
+    .glass-btn:hover  { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.20); }
+    .glass-btn:active { transform: scale(0.97); }
+
+    /* Glow effect on brand buttons */
+    .btn-glow {
+      box-shadow: 0 0 20px rgba(249,115,22,0.35), 0 4px 16px rgba(0,0,0,0.3);
+      transition: box-shadow 0.2s, transform 0.1s, filter 0.2s;
+    }
+    .btn-glow:hover  { box-shadow: 0 0 30px rgba(249,115,22,0.50), 0 4px 20px rgba(0,0,0,0.35); filter: brightness(1.05); }
+    .btn-glow:active { transform: scale(0.97); }
+
+    .btn-glow-red {
+      box-shadow: 0 0 20px rgba(239,68,68,0.35), 0 4px 16px rgba(0,0,0,0.3);
+      transition: box-shadow 0.2s, transform 0.1s, filter 0.2s;
+    }
+    .btn-glow-red:hover  { box-shadow: 0 0 30px rgba(239,68,68,0.50); filter: brightness(1.05); }
+    .btn-glow-red:active { transform: scale(0.97); }
+
+    .btn-glow-green {
+      box-shadow: 0 0 20px rgba(34,197,94,0.35), 0 4px 16px rgba(0,0,0,0.3);
+      transition: box-shadow 0.2s, transform 0.1s, filter 0.2s;
+    }
+    .btn-glow-green:hover  { box-shadow: 0 0 30px rgba(34,197,94,0.50); filter: brightness(1.05); }
+    .btn-glow-green:active { transform: scale(0.97); }
+
+    /* Safe area */
+    .safe-top    { padding-top: env(safe-area-inset-top); }
+    .pb-safe     { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
+    .h-safe-bot  { height: calc(4rem + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
+
+    /* Min tap target */
+    .tap-target { min-height: 44px; min-width: 44px; }
+
+    /* Page animation */
+    .page-content { animation: slideUp 0.22s ease-out; }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Bottom nav active */
+    .bnav-active { color: #f97316; }
+    .bnav-active svg { stroke: #f97316; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+    /* Status pill colors */
+    .pill-present  { background: rgba(34,197,94,0.15);  color: #86efac; border: 1px solid rgba(34,197,94,0.25); }
+    .pill-late     { background: rgba(234,179,8,0.15);  color: #fde047; border: 1px solid rgba(234,179,8,0.25); }
+    .pill-half     { background: rgba(249,115,22,0.15); color: #fdba74; border: 1px solid rgba(249,115,22,0.25); }
+    .pill-absent   { background: rgba(239,68,68,0.15);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+    .pill-other    { background: rgba(148,163,184,0.12); color: #94a3b8; border: 1px solid rgba(148,163,184,0.18); }
+
+    /* Divider */
+    .glass-divider { border-color: rgba(255,255,255,0.08); }
+
+    /* Shimmer on stats */
+    .stat-num {
+      background: linear-gradient(135deg, #f1f5f9 30%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
   </style>
 </head>
-<body class="bg-gray-950 text-gray-100 min-h-screen">
+<body>
+
+<!-- Animated Background Scene -->
+<div class="bg-scene">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<!-- Z-layer for content -->
+<div class="relative z-10 min-h-screen flex flex-col">
 
   {% if request.session.employee_id %}
   <!-- Top Navigation -->
-  <nav class="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
-    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-sm">JFP</div>
-        <span class="font-semibold text-white">Employee Portal</span>
+  <nav class="glass sticky top-0 z-50 safe-top" style="border-top:none;border-left:none;border-right:none;border-radius:0;">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <!-- Brand -->
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-extrabold text-xs shadow-lg shadow-brand-500/30">JFP</div>
+        <span class="font-semibold text-white text-sm hidden xs:block">Employee Portal</span>
       </div>
-      <div class="flex items-center gap-4">
-        <a href="{% url 'attendance:profile' %}" class="text-sm text-gray-400 hover:text-white transition font-medium hidden sm:block">{{ request.session.employee_name }}</a>
-        <div class="flex gap-2">
-          <a href="{% url 'attendance:dashboard' %}"
-             class="text-sm px-3 py-1.5 rounded-lg {% if request.resolver_match.url_name == 'dashboard' %}bg-brand-500 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %} transition">
-            Dashboard
-          </a>
-          <a href="{% url 'attendance:history' %}"
-             class="text-sm px-3 py-1.5 rounded-lg {% if request.resolver_match.url_name == 'history' %}bg-brand-500 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %} transition">
-            History
-          </a>
-          <a href="{% url 'attendance:logout' %}"
-             class="text-sm px-3 py-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-gray-800 transition">
-            Logout
-          </a>
-        </div>
+
+      <!-- Desktop nav -->
+      <div class="hidden sm:flex items-center gap-1">
+        <a href="{% url 'attendance:profile' %}" class="glass-btn text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-lg font-medium">
+          {{ request.session.employee_name }}
+        </a>
+        <a href="{% url 'attendance:dashboard' %}"
+           class="text-sm px-3 py-1.5 rounded-lg font-semibold transition
+                  {% if request.resolver_match.url_name == 'dashboard' %}bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-sm shadow-brand-500/30{% else %}glass-btn text-slate-400 hover:text-white{% endif %}">
+          Dashboard
+        </a>
+        <a href="{% url 'attendance:history' %}"
+           class="text-sm px-3 py-1.5 rounded-lg font-semibold transition
+                  {% if request.resolver_match.url_name == 'history' %}bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-sm shadow-brand-500/30{% else %}glass-btn text-slate-400 hover:text-white{% endif %}">
+          History
+        </a>
+        <a href="{% url 'attendance:logout' %}"
+           class="text-sm px-3 py-1.5 rounded-lg font-semibold glass-btn text-slate-400 hover:text-red-400 transition">
+          Logout
+        </a>
       </div>
+
+      <!-- Mobile: name only -->
+      <span class="sm:hidden text-xs text-slate-500 truncate max-w-[140px]">{{ request.session.employee_name }}</span>
     </div>
   </nav>
   {% endif %}
 
-  <!-- Messages -->
+  <!-- Flash Messages -->
   {% if messages %}
-  <div class="max-w-5xl mx-auto px-4 pt-4 space-y-2">
+  <div class="max-w-5xl mx-auto w-full px-4 pt-3 space-y-2 relative z-10">
     {% for message in messages %}
-    <div class="rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2
-      {% if message.tags == 'error' %}bg-red-900/50 text-red-300 border border-red-800
-      {% elif message.tags == 'warning' %}bg-yellow-900/50 text-yellow-300 border border-yellow-800
-      {% elif message.tags == 'success' %}bg-green-900/50 text-green-300 border border-green-800
-      {% else %}bg-blue-900/50 text-blue-300 border border-blue-800{% endif %}">
-      <span>{{ message }}</span>
+    <div class="flex items-start gap-3 rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed
+      {% if message.tags == 'error' %}bg-red-500/10 text-red-300 border border-red-500/25
+      {% elif message.tags == 'warning' %}bg-yellow-500/10 text-yellow-300 border border-yellow-500/25
+      {% elif message.tags == 'success' %}bg-green-500/10 text-green-300 border border-green-500/25
+      {% else %}bg-blue-500/10 text-blue-300 border border-blue-500/25{% endif %}"
+      style="backdrop-filter:blur(16px);">
+      <span class="leading-relaxed">{{ message }}</span>
     </div>
     {% endfor %}
   </div>
   {% endif %}
 
   <!-- Page Content -->
-  <main class="max-w-5xl mx-auto px-4 py-6">
+  <main class="flex-1 max-w-5xl mx-auto w-full px-4 py-5 page-content {% if request.session.employee_id %}pb-safe sm:pb-6{% endif %}">
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="text-center text-xs text-gray-600 py-6">
+  <!-- Mobile Bottom Navigation -->
+  {% if request.session.employee_id %}
+  <nav class="sm:hidden fixed bottom-0 inset-x-0 z-50 h-safe-bot glass"
+       style="border-bottom:none;border-left:none;border-right:none;border-radius:0;">
+    <div class="grid grid-cols-4 h-16 max-w-lg mx-auto">
+
+      <!-- Home -->
+      <a href="{% url 'attendance:dashboard' %}"
+         class="flex flex-col items-center justify-center gap-1 transition {% if request.resolver_match.url_name == 'dashboard' %}bnav-active{% else %}text-slate-500{% endif %}">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        <span class="text-[10px] font-semibold">Home</span>
+      </a>
+
+      <!-- History -->
+      <a href="{% url 'attendance:history' %}"
+         class="flex flex-col items-center justify-center gap-1 transition {% if request.resolver_match.url_name == 'history' %}bnav-active{% else %}text-slate-500{% endif %}">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <span class="text-[10px] font-semibold">History</span>
+      </a>
+
+      <!-- Profile -->
+      <a href="{% url 'attendance:profile' %}"
+         class="flex flex-col items-center justify-center gap-1 transition {% if request.resolver_match.url_name == 'profile' %}bnav-active{% else %}text-slate-500{% endif %}">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+        </svg>
+        <span class="text-[10px] font-semibold">Profile</span>
+      </a>
+
+      <!-- Logout -->
+      <a href="{% url 'attendance:logout' %}"
+         class="flex flex-col items-center justify-center gap-1 transition text-slate-500 hover:text-red-400">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+        <span class="text-[10px] font-semibold">Logout</span>
+      </a>
+
+    </div>
+  </nav>
+  {% endif %}
+
+  <footer class="hidden sm:block text-center text-xs text-slate-700 py-4">
     Jai Fancy Packs &mdash; Employee Portal &copy; {% now "Y" %}
   </footer>
 
+</div><!-- /z-layer -->
 </body>
 </html>

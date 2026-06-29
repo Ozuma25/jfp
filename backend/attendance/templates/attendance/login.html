@@ -2,76 +2,83 @@
 {% block title %}Login — JFP Employee Portal{% endblock %}
 
 {% block content %}
-<div class="min-h-[80vh] flex items-center justify-center">
-  <div class="w-full max-w-md">
+<div class="min-h-[88vh] flex items-center justify-center py-4">
+  <div class="w-full max-w-sm">
 
-    <!-- Logo / Header -->
+    <!-- Logo -->
     <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-500 text-white text-2xl font-bold mb-4 shadow-lg shadow-brand-500/30">
-        JFP
+      <div class="relative inline-block mb-4">
+        <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white text-2xl font-extrabold shadow-2xl shadow-brand-500/40">
+          JFP
+        </div>
+        <!-- Glow ring -->
+        <div class="absolute inset-0 rounded-3xl bg-brand-500/20 blur-xl -z-10 scale-150"></div>
       </div>
-      <h1 class="text-2xl font-bold text-white">Employee Portal</h1>
-      <p class="text-gray-400 text-sm mt-1">Jai Fancy Packs</p>
+      <h1 class="text-3xl font-extrabold text-white tracking-tight">Employee Portal</h1>
+      <p class="text-slate-500 text-sm mt-1.5 font-medium">Jai Fancy Packs</p>
     </div>
 
-    <!-- Login Card -->
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
-      <h2 class="text-lg font-semibold text-white mb-5">Who are you?</h2>
+    <!-- Glass Login Card -->
+    <div class="glass-strong rounded-3xl p-6 shadow-2xl">
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Select your name</h2>
 
       <form method="post" id="loginForm">
         {% csrf_token %}
 
         <!-- Employee Selection -->
-        <div class="space-y-2 mb-5">
+        <div class="space-y-2 mb-5 max-h-56 overflow-y-auto pr-0.5">
           {% for emp in employees %}
-          <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-700 cursor-pointer
-                        hover:border-brand-500 hover:bg-gray-800 transition-all group has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/10">
+          <label class="flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer tap-target transition-all group
+                        glass-btn border border-white/8
+                        has-[:checked]:border-brand-500/60 has-[:checked]:bg-brand-500/10
+                        has-[:checked]:shadow-[0_0_16px_rgba(249,115,22,0.15)]">
             <input type="radio" name="employee_id" value="{{ emp.pk }}" required
-                   class="accent-brand-500 w-4 h-4">
-            <div class="flex-1">
-              <span class="font-medium text-white group-hover:text-white">{{ emp.name }}</span>
-              <span class="text-xs text-gray-500 ml-2">{{ emp.employee_code }}</span>
+                   class="accent-brand-500 w-4 h-4 flex-shrink-0">
+            <div class="flex-1 min-w-0">
+              <span class="font-semibold text-slate-100 text-sm block truncate group-[.has-[:checked]]:text-white">{{ emp.name }}</span>
+              {% if emp.designation %}
+              <span class="text-[11px] text-slate-500 block truncate">{{ emp.designation }}</span>
+              {% endif %}
             </div>
-            {% if emp.designation %}
-            <span class="text-xs text-gray-500">{{ emp.designation }}</span>
-            {% endif %}
+            <span class="text-[10px] font-mono text-slate-600 flex-shrink-0">{{ emp.employee_code }}</span>
           </label>
           {% empty %}
-          <p class="text-gray-500 text-sm text-center py-4">No active employees found.</p>
+          <p class="text-slate-500 text-sm text-center py-6">No active employees found.</p>
           {% endfor %}
         </div>
 
-        <!-- PIN Input -->
+        <!-- Divider -->
+        <div class="h-px bg-white/8 mb-5"></div>
+
+        <!-- PIN -->
         <div class="mb-5">
-          <label class="block text-sm font-medium text-gray-300 mb-1.5">PIN</label>
+          <label class="block text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-2.5">PIN</label>
           <input
             type="password"
             name="pin"
             maxlength="6"
             inputmode="numeric"
-            placeholder="Enter your PIN"
+            pattern="[0-9]*"
+            autocomplete="current-password"
+            placeholder="••••••"
             required
-            class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-center
-                   text-xl tracking-widest placeholder-gray-600 focus:outline-none focus:border-brand-500
-                   focus:ring-1 focus:ring-brand-500 transition"
+            class="glass-input w-full rounded-2xl px-4 py-4 text-center text-2xl tracking-[0.5em]
+                   placeholder-slate-700 tap-target font-bold"
           >
         </div>
 
-        <!-- Hidden device fingerprint input -->
         <input type="hidden" name="device_fingerprint" id="loginFingerprint">
 
-        <!-- Submit -->
         <button type="submit"
-                class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-3 rounded-xl
-                       transition-all transform active:scale-95 shadow-lg shadow-brand-500/20">
+                class="w-full tap-target bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold py-4
+                       rounded-2xl btn-glow text-base tracking-wide">
           Login →
         </button>
       </form>
     </div>
 
-    <!-- Admin link -->
-    <p class="text-center mt-4 text-xs text-gray-600">
-      Admin? <a href="/admin/" class="text-gray-500 hover:text-gray-300 underline">Go to Admin Panel</a>
+    <p class="text-center mt-5 text-xs text-slate-700">
+      Admin? <a href="/admin/" class="text-slate-500 hover:text-slate-300 underline transition">Go to Admin Panel</a>
     </p>
   </div>
 </div>

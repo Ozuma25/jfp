@@ -2,101 +2,155 @@
 {% block title %}Attendance History — JFP Employee Portal{% endblock %}
 
 {% block content %}
-<div class="flex items-center justify-between mb-6">
-  <h1 class="text-xl font-bold text-white">Attendance History</h1>
-  <span class="text-sm text-gray-400">{{ period_label }}</span>
+<!-- Header -->
+<div class="flex items-center justify-between mb-6 gap-2">
+  <h1 class="text-xl font-bold text-white tracking-tight">Attendance History</h1>
+  <span class="text-xs text-slate-400 glass px-3 py-1.5 rounded-xl font-mono">{{ period_label }}</span>
 </div>
 
 <!-- Leave Quick Summary -->
 <div class="grid grid-cols-2 gap-4 mb-5">
-  <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-    <p class="text-2xl font-bold text-white">{{ leave_taken_month }}</p>
-    <p class="text-xs text-gray-500 mt-1">Leaves Taken This Period</p>
+  <div class="glass rounded-2xl p-4 text-center">
+    <p class="text-3xl font-extrabold stat-num">{{ leave_taken_month }}</p>
+    <p class="text-[10px] text-slate-500 mt-1 font-semibold uppercase tracking-wider">Leaves This Period</p>
   </div>
-  <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-    <p class="text-2xl font-bold text-white">{{ leave_taken_year }}</p>
-    <p class="text-xs text-gray-500 mt-1">Leaves Taken This Year</p>
+  <div class="glass rounded-2xl p-4 text-center">
+    <p class="text-3xl font-extrabold stat-num">{{ leave_taken_year }}</p>
+    <p class="text-[10px] text-slate-500 mt-1 font-semibold uppercase tracking-wider">Leaves This Year</p>
   </div>
 </div>
 
 <!-- Filter Controls -->
-<div class="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-5">
-  <form method="get" class="flex flex-wrap gap-3 items-end">
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">View</label>
+<div class="glass rounded-2xl p-5 mb-6">
+  <form method="get" class="flex flex-wrap gap-4 items-end">
+    <div class="flex-1 min-w-[120px]">
+      <label class="block text-[10px] text-slate-500 mb-2 font-bold uppercase tracking-wider">View</label>
       <select name="filter"
-              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none">
-        <option value="monthly" {% if filter_type == "monthly" %}selected{% endif %}>Monthly</option>
-        <option value="weekly"  {% if filter_type == "weekly"  %}selected{% endif %}>This Week</option>
+              class="glass-input w-full rounded-xl px-3 py-2.5 text-sm tap-target font-medium focus:ring-1 focus:ring-brand-500/30">
+        <option value="monthly" {% if filter_type == "monthly" %}selected{% endif %} class="bg-slate-900">Monthly</option>
+        <option value="weekly"  {% if filter_type == "weekly"  %}selected{% endif %} class="bg-slate-900">This Week</option>
       </select>
     </div>
     {% if filter_type == "monthly" %}
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">Month</label>
+    <div class="flex-1 min-w-[120px]">
+      <label class="block text-[10px] text-slate-500 mb-2 font-bold uppercase tracking-wider">Month</label>
       <select name="month"
-              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none">
-        {% for m in "123456789101112"|make_list %}{% endfor %}
+              class="glass-input w-full rounded-xl px-3 py-2.5 text-sm tap-target font-medium focus:ring-1 focus:ring-brand-500/30">
         {% for mn, ml in months %}
-        <option value="{{ mn }}" {% if mn == month %}selected{% endif %}>{{ ml }}</option>
+        <option value="{{ mn }}" {% if mn == month %}selected{% endif %} class="bg-slate-900">{{ ml }}</option>
         {% endfor %}
       </select>
     </div>
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">Year</label>
+    <div class="flex-1 min-w-[120px]">
+      <label class="block text-[10px] text-slate-500 mb-2 font-bold uppercase tracking-wider">Year</label>
       <select name="year"
-              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none">
+              class="glass-input w-full rounded-xl px-3 py-2.5 text-sm tap-target font-medium focus:ring-1 focus:ring-brand-500/30">
         {% for y in years %}
-        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+        <option value="{{ y }}" {% if y == year %}selected{% endif %} class="bg-slate-900">{{ y }}</option>
         {% endfor %}
       </select>
     </div>
     {% endif %}
     <button type="submit"
-            class="bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+            class="flex-shrink-0 bg-gradient-to-r from-brand-600 to-brand-500 text-white text-sm font-bold px-6 py-3 rounded-xl transition btn-glow tap-target">
       Apply
     </button>
   </form>
 </div>
 
-<!-- Records Table -->
-<div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+<!-- Records — Mobile Card View -->
+<div class="space-y-3 sm:hidden">
+  {% if records %}
+    {% for record in records %}
+    <div class="glass-strong rounded-2xl p-4">
+      <!-- Date row -->
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl font-black text-white">{{ record.date|date:"d" }}</span>
+          <div>
+            <span class="text-sm text-slate-300 font-bold block leading-none">{{ record.date|date:"M Y" }}</span>
+            <span class="text-[10px] text-slate-500 font-medium block mt-0.5">{{ record.date|date:"l" }}</span>
+          </div>
+          {% if record.is_manual_entry %}
+          <span class="text-[9px] bg-yellow-500/10 text-yellow-300 border border-yellow-500/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Manual</span>
+          {% endif %}
+        </div>
+        <span class="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full leading-none
+          {% if record.status == 'PRESENT' %}pill-present
+          {% elif record.status == 'LATE' %}pill-late
+          {% elif record.status == 'HALF_DAY' %}pill-half
+          {% elif record.status == 'ABSENT' %}pill-absent
+          {% else %}pill-other{% endif %}">
+          {{ record.get_status_display }}
+          {% if record.leave_deduction > 0 %}<span class="opacity-80"> -{{ record.leave_deduction }}L</span>{% endif %}
+        </span>
+      </div>
+      <!-- Time details -->
+      <div class="grid grid-cols-3 gap-2 mt-2">
+        <div class="text-center glass-dark rounded-xl p-2.5">
+          <p class="text-[9px] text-slate-500 font-semibold uppercase tracking-wider mb-0.5">In</p>
+          <p class="text-xs font-bold text-slate-200">{{ record.punch_in_time_display }}</p>
+        </div>
+        <div class="text-center glass-dark rounded-xl p-2.5">
+          <p class="text-[9px] text-slate-500 font-semibold uppercase tracking-wider mb-0.5">Out</p>
+          <p class="text-xs font-bold text-slate-200">{{ record.punch_out_time_display }}</p>
+        </div>
+        <div class="text-center glass-dark rounded-xl p-2.5">
+          <p class="text-[9px] text-slate-500 font-semibold uppercase tracking-wider mb-0.5">Hours</p>
+          <p class="text-xs font-bold text-white">{{ record.working_hours_display }}</p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="glass rounded-2xl text-center py-16 text-slate-500">
+    <p class="text-4xl mb-3">📋</p>
+    <p class="text-sm font-semibold">No attendance records for {{ period_label }}.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Records — Desktop Table View -->
+<div class="hidden sm:block glass-strong rounded-3xl overflow-hidden shadow-2xl">
   {% if records %}
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
       <thead>
-        <tr class="border-b border-gray-800">
-          <th class="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3">Date</th>
-          <th class="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">In</th>
-          <th class="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Out</th>
-          <th class="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Hours</th>
-          <th class="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Status</th>
+        <tr class="border-b glass-divider">
+          <th class="text-left text-xs text-slate-400 font-bold uppercase tracking-wider px-6 py-4">Date</th>
+          <th class="text-left text-xs text-slate-400 font-bold uppercase tracking-wider px-5 py-4">In</th>
+          <th class="text-left text-xs text-slate-400 font-bold uppercase tracking-wider px-5 py-4">Out</th>
+          <th class="text-left text-xs text-slate-400 font-bold uppercase tracking-wider px-5 py-4">Hours</th>
+          <th class="text-left text-xs text-slate-400 font-bold uppercase tracking-wider px-6 py-4">Status</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-gray-800">
+      <tbody class="divide-y glass-divider">
         {% for record in records %}
-        <tr class="hover:bg-gray-800/40 transition">
-          <td class="px-5 py-3.5">
-            <span class="font-medium text-white">{{ record.date|date:"d" }}</span>
-            <span class="text-gray-400 ml-1">{{ record.date|date:"M" }}</span>
-            <span class="text-xs text-gray-600 ml-1">{{ record.date|date:"D" }}</span>
-            {% if record.is_manual_entry %}
-            <span class="ml-1 text-xs bg-yellow-900/60 text-yellow-400 px-1.5 py-0.5 rounded">Manual</span>
-            {% endif %}
+        <tr class="hover:bg-white/[0.02] transition">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-2">
+              <span class="font-extrabold text-white text-base">{{ record.date|date:"d" }}</span>
+              <span class="text-slate-400 font-semibold text-sm">{{ record.date|date:"M Y" }}</span>
+              <span class="text-xs text-slate-500 ml-1">({{ record.date|date:"D" }})</span>
+              {% if record.is_manual_entry %}
+              <span class="ml-1 text-[9px] bg-yellow-500/10 text-yellow-300 border border-yellow-500/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Manual</span>
+              {% endif %}
+            </div>
           </td>
-          <td class="px-4 py-3.5 text-gray-300">{{ record.punch_in_time_display }}</td>
-          <td class="px-4 py-3.5 text-gray-300">{{ record.punch_out_time_display }}</td>
-          <td class="px-4 py-3.5 text-gray-300">{{ record.working_hours_display }}</td>
-          <td class="px-4 py-3.5">
-            <span class="inline-block text-xs font-semibold px-2.5 py-1 rounded-full
-              {% if record.status == 'PRESENT' %}bg-green-900/60 text-green-300
-              {% elif record.status == 'LATE' %}bg-yellow-900/60 text-yellow-300
-              {% elif record.status == 'HALF_DAY' %}bg-orange-900/60 text-orange-300
-              {% elif record.status == 'ABSENT' %}bg-red-900/60 text-red-300
-              {% else %}bg-gray-800 text-gray-400{% endif %}">
+          <td class="px-5 py-4 text-slate-300 font-semibold">{{ record.punch_in_time_display }}</td>
+          <td class="px-5 py-4 text-slate-300 font-semibold">{{ record.punch_out_time_display }}</td>
+          <td class="px-5 py-4 text-white font-extrabold">{{ record.working_hours_display }}</td>
+          <td class="px-6 py-4">
+            <span class="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full leading-none
+              {% if record.status == 'PRESENT' %}pill-present
+              {% elif record.status == 'LATE' %}pill-late
+              {% elif record.status == 'HALF_DAY' %}pill-half
+              {% elif record.status == 'ABSENT' %}pill-absent
+              {% else %}pill-other{% endif %}">
               {{ record.get_status_display }}
             </span>
             {% if record.leave_deduction > 0 %}
-            <span class="ml-1 text-xs text-red-400">-{{ record.leave_deduction }}L</span>
+            <span class="ml-2 text-xs text-red-400 font-bold">-{{ record.leave_deduction }}L</span>
             {% endif %}
           </td>
         </tr>
@@ -105,9 +159,9 @@
     </table>
   </div>
   {% else %}
-  <div class="text-center py-16 text-gray-600">
+  <div class="glass text-center py-16 text-slate-500">
     <p class="text-4xl mb-3">📋</p>
-    <p class="text-sm">No attendance records for {{ period_label }}.</p>
+    <p class="text-sm font-semibold">No attendance records for {{ period_label }}.</p>
   </div>
   {% endif %}
 </div>
