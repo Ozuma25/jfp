@@ -321,13 +321,23 @@ class Attendance(models.Model):
     def __str__(self):
         return f"{self.employee.employee_code} | {self.date} | {self.status}"
 
+    def save(self, *args, **kwargs):
+        if self.punch_in and self.punch_out and self.punch_out > self.punch_in:
+            calc_minutes = int((self.punch_out - self.punch_in).total_seconds() / 60)
+            if not self.working_minutes or self.working_minutes == 0:
+                self.working_minutes = max(calc_minutes, 0)
+        super().save(*args, **kwargs)
+
     # -- Computed helpers -----------------------------------------------------
 
     @property
     def working_hours_display(self) -> str:
-        if not self.working_minutes:
+        minutes = self.working_minutes
+        if not minutes and self.punch_in and self.punch_out and self.punch_out > self.punch_in:
+            minutes = int((self.punch_out - self.punch_in).total_seconds() / 60)
+        if not minutes:
             return "—"
-        h, m = divmod(self.working_minutes, 60)
+        h, m = divmod(minutes, 60)
         return f"{h}h {m}m"
 
     @property

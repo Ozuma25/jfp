@@ -6,6 +6,7 @@ Views call these functions — no business logic in views.
 """
 
 import datetime
+from decimal import Decimal
 import math
 
 from django.utils import timezone
@@ -359,7 +360,7 @@ def _apply_leave_deduction(
 ) -> None:
     """Subtract deduction from the employee's leave balance for the year."""
     balance = LeaveBalance.get_or_create_for_year(employee, date.year)
-    balance.used = balance.used + deduction
+    balance.used = balance.used + Decimal(str(deduction))
     balance.save(update_fields=["used", "updated_at"])
 
 
@@ -389,6 +390,45 @@ def credit_monthly_leave(employee: Employee, year: int, month: int) -> bool:
         new_value={"year": year, "month": month, "credited_total": float(balance.credited)},
     )
     return True
+
+
+def ensure_monthly_leave_credits(employee: Employee, year: int, month: int) -> int:
+    """
+    Ensure 1 paid leave is credited per month starting from August 2026 up to (year, month).
+    Unused paid leaves automatically carry forward month-to-month.
+    """
+    if employee.status != Employee.Status.ACTIVE:
+        return 0
+
+    # Start monthly paid leave accrual from August 2026
+    ACCURAL_START_YEAR = 2026
+    ACCURAL_START_MONTH = 8
+
+    # If target year/month is before August 2026, no monthly credits are added
+    if (year < ACCURAL_START_YEAR) or (year == ACCURAL_START_YEAR and month < ACCURAL_START_MONTH):
+        return 0
+
+    join_date = employee.joining_date or datetime.date(ACCURAL_START_YEAR, ACCURAL_START_MONTH, 1)
+
+    if join_date.year > ACCURAL_START_YEAR or (join_date.year == ACCURAL_START_YEAR and join_date.month > ACCURAL_START_MONTH):
+        curr_y = join_date.year
+        curr_m = join_date.month
+    else:
+        curr_y = ACCURAL_START_YEAR
+        curr_m = ACCURAL_START_MONTH
+
+    credits_added = 0
+    while (curr_y < year) or (curr_y == year and curr_m <= month):
+        if credit_monthly_leave(employee, curr_y, curr_m):
+            credits_added += 1
+
+        if curr_m == 12:
+            curr_y += 1
+            curr_m = 1
+        else:
+            curr_m += 1
+
+    return credits_added
 
 
 # ---------------------------------------------------------------------------

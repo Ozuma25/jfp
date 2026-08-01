@@ -12,6 +12,7 @@ Admins can manage:
 """
 
 import datetime
+from decimal import Decimal
 
 from django import forms
 from django.contrib import admin, messages
@@ -330,6 +331,16 @@ class AttendanceAdmin(AttendancePhotoMixin, admin.ModelAdmin):
                 ip_address=get_client_ip(request),
             )
         super().save_model(request, obj, form, change)
+
+        # If attendance is marked PRESENT or LATE with 0 leave deduction, clean up any existing LeaveRecord
+        if obj.status in [Attendance.Status.PRESENT, Attendance.Status.LATE] and obj.leave_deduction == 0:
+            existing_leave = LeaveRecord.objects.filter(employee=obj.employee, leave_date=obj.date).first()
+            if existing_leave:
+                if existing_leave.status == LeaveRecord.Status.APPROVED:
+                    balance = LeaveBalance.get_or_create_for_year(obj.employee, obj.date.year)
+                    balance.used = Decimal(str(max(0.0, float(balance.used) - float(existing_leave.deduction_days))))
+                    balance.save(update_fields=["used", "updated_at"])
+                existing_leave.delete()
 
 
 # ---------------------------------------------------------------------------

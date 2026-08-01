@@ -12,6 +12,7 @@ Routes handled:
 """
 
 import json
+from decimal import Decimal
 
 from django.contrib import messages
 from django.http import JsonResponse
@@ -33,6 +34,7 @@ from .models import (
     SalaryHistory,
 )
 from .services import (
+    ensure_monthly_leave_credits,
     get_employee_dashboard_data,
     is_working_day,
     process_punch_in,
@@ -614,14 +616,22 @@ def admin_approve_leave(request, leave_id):
         leave = LeaveRecord.objects.get(pk=leave_id)
         if leave.status != LeaveRecord.Status.PENDING:
             return JsonResponse({"success": False, "message": "Leave is already processed."}, status=400)
-            
+
+        # Deduct balance
+        ensure_monthly_leave_credits(leave.employee, leave.leave_date.year, leave.leave_date.month)
+        balance = LeaveBalance.get_or_create_for_year(leave.employee, leave.leave_date.year)
+
+        if balance.available < Decimal(str(leave.deduction_days)):
+            return JsonResponse({
+                "success": False,
+                "message": f"Cannot approve leave. {leave.employee.name} has insufficient paid leave balance (Available: {float(balance.available):.1f})."
+            }, status=400)
+
         leave.status = LeaveRecord.Status.APPROVED
         leave.approved_by = request.user.username
         leave.save(update_fields=["status", "approved_by"])
-        
-        # Deduct balance
-        balance = LeaveBalance.get_or_create_for_year(leave.employee, leave.leave_date.year)
-        balance.used = balance.used + leave.deduction_days
+
+        balance.used = balance.used + Decimal(str(leave.deduction_days))
         balance.save(update_fields=["used", "updated_at"])
         
         # Also auto-create or update attendance for that date to avoid ABSENT triggers
@@ -687,6 +697,7 @@ def admin_employee_details(request, emp_id):
         
         # Leave Balance
         today = timezone.localdate()
+        ensure_monthly_leave_credits(emp, today.year, today.month)
         balance, _ = LeaveBalance.objects.get_or_create(
             employee=emp,
             year=today.year,
@@ -799,6 +810,10 @@ def calculate_monthly_payroll(year: int, month: int) -> list:
         emp_attendance[r.employee_id].append(r)
         
     for emp in employees:
+        ensure_monthly_leave_credits(emp, year, month)
+        balance = LeaveBalance.get_or_create_for_year(emp, year)
+        available_leaves = float(balance.available)
+
         records = emp_attendance.get(emp.id, [])
         l_recs = emp_leave_map.get(emp.id, [])
         
@@ -839,8 +854,24 @@ def calculate_monthly_payroll(year: int, month: int) -> list:
                 continue
 
             if is_working_day(curr_date):
-                if curr_date in leave_by_date:
-                    lr = leave_by_date[curr_date]
+                r = attn_by_date.get(curr_date)
+                lr = leave_by_date.get(curr_date)
+
+                # If an explicit attendance record exists with 0 leave deduction (worked or confirmed unpaid),
+                # clean up any ghost/superseded LeaveRecord for this date.
+                if r and r.leave_deduction == 0 and lr:
+                    if lr.status == LeaveRecord.Status.APPROVED:
+                        balance = LeaveBalance.get_or_create_for_year(emp, curr_date.year)
+                        balance.used = Decimal(str(max(0.0, float(balance.used) - float(lr.deduction_days))))
+                        balance.save(update_fields=["used", "updated_at"])
+                    lr.delete()
+                    lr = None
+
+                if r and r.status in [Attendance.Status.PRESENT, Attendance.Status.LATE] and r.leave_deduction == 0:
+                    # Employee worked on this day (regular present/late)
+                    pass
+
+                elif lr:
                     leaves_list.append({
                         "date": lr.leave_date,
                         "type": f"Leave Application ({lr.get_leave_type_display()})",
@@ -853,8 +884,7 @@ def calculate_monthly_payroll(year: int, month: int) -> list:
                     if lr.status == LeaveRecord.Status.APPROVED:
                         paid_leaves_used += float(lr.deduction_days)
 
-                elif curr_date in attn_by_date:
-                    r = attn_by_date[curr_date]
+                elif r:
                     if r.status == Attendance.Status.ABSENT:
                         leaves_list.append({
                             "date": r.date,
@@ -949,6 +979,7 @@ def calculate_monthly_payroll(year: int, month: int) -> list:
             "absent": total_absent_days,
             "paid_leaves_used": float(paid_leaves_used),
             "unpaid_days": float(total_unpaid_days),
+            "available_leaves": available_leaves,
             "base_salary": base_salary,
             "net_payout": net_payout,
             "details": details,
@@ -990,6 +1021,16 @@ def admin_regularize_attendance(request):
     office_settings = OfficeSettings.get_settings()
     tz = timezone.get_current_timezone()
 
+    # If taking any non-paid-leave action, clean up any existing LeaveRecord for this date
+    if action in ["fix_punch_out", "convert_half_day", "mark_official_duty", "add_manual_attendance", "confirm_unpaid"]:
+        existing_leave = LeaveRecord.objects.filter(employee=emp, leave_date=target_date).first()
+        if existing_leave:
+            if existing_leave.status == LeaveRecord.Status.APPROVED:
+                balance = LeaveBalance.get_or_create_for_year(emp, target_date.year)
+                balance.used = Decimal(str(max(0.0, float(balance.used) - float(existing_leave.deduction_days))))
+                balance.save(update_fields=["used", "updated_at"])
+            existing_leave.delete()
+
     if action == "fix_punch_out":
         out_time_str = body.get("punch_out_time", "18:00")
         try:
@@ -1002,10 +1043,10 @@ def admin_regularize_attendance(request):
             defaults={"status": Attendance.Status.PRESENT, "is_manual_entry": True}
         )
 
-        out_dt = tz.localize(datetime.combine(target_date, out_t))
+        out_dt = timezone.make_aware(datetime.combine(target_date, out_t))
         if not attn.punch_in:
             shift_start_t = office_settings.shift_start
-            attn.punch_in = tz.localize(datetime.combine(target_date, shift_start_t))
+            attn.punch_in = timezone.make_aware(datetime.combine(target_date, shift_start_t))
 
         attn.punch_out = out_dt
         if attn.punch_out > attn.punch_in:
@@ -1051,6 +1092,15 @@ def admin_regularize_attendance(request):
         msg = f"Converted {target_date} to Half-Day for {emp.name}."
 
     elif action == "apply_paid_leave":
+        ensure_monthly_leave_credits(emp, target_date.year, target_date.month)
+        balance = LeaveBalance.get_or_create_for_year(emp, target_date.year)
+
+        if balance.available < Decimal("1.0"):
+            return JsonResponse({
+                "success": False,
+                "message": f"Cannot grant paid leave. {emp.name} has no available paid leaves (Available: {float(balance.available):.1f}). This day must remain as Unpaid."
+            }, status=400)
+
         leave_rec, _ = LeaveRecord.objects.get_or_create(
             employee=emp, leave_date=target_date,
             defaults={
@@ -1063,8 +1113,7 @@ def admin_regularize_attendance(request):
         leave_rec.approved_by = request.user.username
         leave_rec.save()
 
-        balance = LeaveBalance.get_or_create_for_year(emp, target_date.year)
-        balance.used = balance.used + 1.0
+        balance.used = balance.used + Decimal("1.0")
         balance.save(update_fields=["used", "updated_at"])
 
         attn, _ = Attendance.objects.get_or_create(
@@ -1117,8 +1166,8 @@ def admin_regularize_attendance(request):
         except ValueError:
             in_t, out_t = time(9, 0), time(18, 0)
 
-        in_dt = tz.localize(datetime.combine(target_date, in_t))
-        out_dt = tz.localize(datetime.combine(target_date, out_t))
+        in_dt = timezone.make_aware(datetime.combine(target_date, in_t))
+        out_dt = timezone.make_aware(datetime.combine(target_date, out_t))
 
         attn, _ = Attendance.objects.get_or_create(
             employee=emp, date=target_date,
@@ -1150,6 +1199,9 @@ def admin_regularize_attendance(request):
         )
         attn.status = Attendance.Status.ABSENT
         attn.leave_deduction = 0.0
+        attn.punch_in = None
+        attn.punch_out = None
+        attn.working_minutes = 0
         attn.is_manual_entry = True
         attn.manual_entry_note = f"Confirmed Unpaid Absence by Admin ({request.user.username})"
         attn.save()
@@ -1181,6 +1233,7 @@ def admin_regularize_attendance(request):
             "absent": emp_payroll["absent"],
             "paid_leaves_used": float(emp_payroll["paid_leaves_used"]),
             "unpaid_days": float(emp_payroll["unpaid_days"]),
+            "available_leaves": float(emp_payroll.get("available_leaves", 0.0)),
             "base_salary": float(emp_payroll["base_salary"]),
             "net_payout": float(emp_payroll["net_payout"]),
             "details": emp_payroll["details"],
