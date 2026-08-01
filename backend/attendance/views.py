@@ -843,7 +843,11 @@ def calculate_monthly_payroll(year: int, month: int) -> list:
             elif r.status == Attendance.Status.ABSENT:
                 absent_explicit += 1
             elif r.status == Attendance.Status.INCOMPLETE:
-                incomplete += 1
+                if r.date == today and r.punch_in and not r.punch_out:
+                    # Ongoing shift today: count as present for today, not incomplete
+                    present += 1
+                else:
+                    incomplete += 1
 
         # Iterate over working days in month up to check_until_date
         curr_date = start_date
@@ -867,8 +871,8 @@ def calculate_monthly_payroll(year: int, month: int) -> list:
                     lr.delete()
                     lr = None
 
-                if r and r.status in [Attendance.Status.PRESENT, Attendance.Status.LATE] and r.leave_deduction == 0:
-                    # Employee worked on this day (regular present/late)
+                if r and ((r.status in [Attendance.Status.PRESENT, Attendance.Status.LATE]) or (r.date == today and r.punch_in and not r.punch_out)) and r.leave_deduction == 0:
+                    # Employee worked on this day (regular present/late or ongoing shift today)
                     pass
 
                 elif lr:
@@ -916,30 +920,38 @@ def calculate_monthly_payroll(year: int, month: int) -> list:
                             unpaid_half_days += 0.5
 
                     elif r.status == Attendance.Status.INCOMPLETE:
-                        leaves_list.append({
-                            "date": r.date,
-                            "type": "Incomplete Shift (Missing Punch Out)",
-                            "status": "Incomplete",
-                            "remarks": r.manual_entry_note or f"Punched in at {r.punch_in_time_display}, no punch-out logged",
-                            "is_approved": False,
-                            "is_pending": False,
-                            "is_incomplete": True,
-                        })
-                        unpaid_absents += 1.0
+                        if r.date == today and r.punch_in and not r.punch_out:
+                            # Ongoing shift today: do not mark as leave/absence
+                            pass
+                        else:
+                            leaves_list.append({
+                                "date": r.date,
+                                "type": "Incomplete Shift (Missing Punch Out)",
+                                "status": "Incomplete",
+                                "remarks": r.manual_entry_note or f"Punched in at {r.punch_in_time_display}, no punch-out logged",
+                                "is_approved": False,
+                                "is_pending": False,
+                                "is_incomplete": True,
+                            })
+                            unpaid_absents += 1.0
 
                 else:
                     # Employee did not punch in or out at all on this working day!
-                    unpunched_absent += 1
-                    unpaid_absents += 1.0
-                    leaves_list.append({
-                        "date": curr_date,
-                        "type": "Unapplied Absence (No Punch)",
-                        "status": "Absent (No Punch)",
-                        "remarks": "No punch-in recorded on working day",
-                        "is_approved": False,
-                        "is_pending": False,
-                        "is_incomplete": False,
-                    })
+                    if curr_date == today:
+                        # Today is still in progress; do not flag unpunched current day as an absent deduction
+                        pass
+                    else:
+                        unpunched_absent += 1
+                        unpaid_absents += 1.0
+                        leaves_list.append({
+                            "date": curr_date,
+                            "type": "Unapplied Absence (No Punch)",
+                            "status": "Absent (No Punch)",
+                            "remarks": "No punch-in recorded on working day",
+                            "is_approved": False,
+                            "is_pending": False,
+                            "is_incomplete": False,
+                        })
 
             curr_date += timedelta(days=1)
 
