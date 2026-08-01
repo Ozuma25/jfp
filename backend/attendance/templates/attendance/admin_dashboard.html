@@ -545,10 +545,20 @@
               </thead>
               <tbody class="divide-y glass-divider">
                 {% for p in payroll_data %}
-                <tr class="hover:bg-white/[0.01] text-slate-300">
+                <tr onclick="toggleEmployeeLeaves({{ p.employee.pk }})" class="hover:bg-white/[0.03] text-slate-300 cursor-pointer transition select-none group">
                   <td class="py-4 px-4">
-                    <div class="font-bold text-white leading-tight">{{ p.employee.name }}</div>
-                    <div class="text-[10px] text-slate-500 font-mono mt-0.5">{{ p.employee.employee_code }} | {{ p.employee.designation }}</div>
+                    <div class="flex items-center gap-2.5">
+                      <span id="payroll-leave-icon-{{ p.employee.pk }}" class="text-xs text-brand-400 font-bold transition-transform duration-200 inline-block group-hover:scale-125">▶</span>
+                      <div>
+                        <div class="font-bold text-white leading-tight group-hover:text-brand-400 transition flex items-center gap-2">
+                          <span>{{ p.employee.name }}</span>
+                          {% if p.leaves %}
+                          <span class="text-[9px] bg-brand-500/15 text-brand-400 border border-brand-500/30 px-1.5 py-0.2 rounded font-mono font-bold">{{ p.leaves|length }} leave{% if p.leaves|length > 1 %}s{% endif %}</span>
+                          {% endif %}
+                        </div>
+                        <div class="text-[10px] text-slate-500 font-mono mt-0.5">{{ p.employee.employee_code }} | {{ p.employee.designation }}</div>
+                      </div>
+                    </div>
                   </td>
                   <td class="py-4 px-4 text-xs font-semibold capitalize">{{ p.employee.get_salary_type_display }}</td>
                   <td class="py-4 px-4 text-center font-bold text-green-400">
@@ -561,6 +571,117 @@
                   <td class="py-4 px-4 text-right font-bold text-white font-mono text-sm">
                     ₹{{ p.net_payout|floatformat:2 }}
                     <span class="block text-[9px] text-slate-500 font-normal mt-0.5 no-print">{{ p.details }}</span>
+                  </td>
+                </tr>
+
+                <!-- Collapsible Leave Details Row -->
+                <tr id="payroll-leave-row-{{ p.employee.pk }}" class="hidden bg-black/40 border-b glass-divider transition-all">
+                  <td colspan="8" class="p-4">
+                    <div class="glass-dark rounded-2xl p-4 border border-white/10 space-y-3">
+                      <div class="flex items-center justify-between border-b glass-divider pb-2.5">
+                        <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                          <span>📅</span> Leave & Absence Breakdown — {{ p.employee.name }} ({{ selected_month|stringformat:"02d" }}/{{ selected_year }})
+                        </h4>
+                        <span class="text-[10px] text-slate-400 font-medium">Click employee row again to collapse</span>
+                      </div>
+                      
+                      {% if p.leaves %}
+                      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {% for l in p.leaves %}
+                        <div class="glass p-3 rounded-xl space-y-2 shadow-sm transition-all
+                          {% if l.is_incomplete %}bg-amber-500/15 border-2 border-amber-400/80 ring-2 ring-amber-400/30 shadow-lg shadow-amber-500/20{% else %}border border-white/10{% endif %}">
+                          <div class="flex items-center justify-between gap-2">
+                            <span class="font-mono text-xs font-bold text-white flex items-center gap-1">
+                              📅 {{ l.date|date:"d M Y" }}
+                            </span>
+                            <span class="text-[9px] font-bold px-2 py-0.5 rounded-full border
+                              {% if l.is_incomplete %}bg-amber-400/20 text-amber-300 border-amber-400/60 font-extrabold uppercase tracking-wider animate-pulse flex items-center gap-1
+                              {% elif l.is_approved %}bg-green-500/10 text-green-400 border-green-500/25
+                              {% elif l.is_pending %}bg-yellow-500/10 text-yellow-400 border-yellow-500/25
+                              {% else %}bg-red-500/10 text-red-400 border-red-500/25{% endif %}">
+                              {% if l.is_incomplete %}⚠️ Incomplete{% else %}{{ l.status }}{% endif %}
+                            </span>
+                          </div>
+                          <p class="text-xs font-bold {% if l.is_incomplete %}text-amber-300 font-extrabold flex items-center gap-1{% else %}text-brand-400{% endif %}">
+                            {% if l.is_incomplete %}⚠️ {% endif %}{{ l.type }}
+                          </p>
+                          {% if l.remarks %}
+                          <p class="text-[11px] font-medium italic p-1.5 rounded-lg border
+                            {% if l.is_incomplete %}bg-amber-950/60 text-amber-200 border-amber-500/30 font-semibold{% else %}text-slate-300 bg-white/5 border-white/5{% endif %}">“{{ l.remarks }}”</p>
+                          {% endif %}
+
+                          <!-- Action Control Toolbar for Admin -->
+                          <div class="pt-2 border-t glass-divider space-y-2">
+                            {% if l.is_incomplete %}
+                              <div class="flex items-center gap-1.5 flex-wrap">
+                                <button type="button" onclick="toggleTimeForm('out-form-{{ p.employee.pk }}-{{ l.date|date:"Y-m-d" }}')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-amber-300 hover:bg-amber-500/20 border border-amber-500/30 transition">
+                                  🕒 Fix Out-Time
+                                </button>
+                                <button type="button" onclick="regularizeAttendance({{ p.employee.pk }}, '{{ l.date|date:"Y-m-d" }}', 'convert_half_day')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-slate-300 hover:text-white transition">
+                                  🌗 Half-Day
+                                </button>
+                                <button type="button" onclick="regularizeAttendance({{ p.employee.pk }}, '{{ l.date|date:"Y-m-d" }}', 'confirm_unpaid')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-red-400 hover:bg-red-500/20 transition">
+                                  ❌ Unpaid
+                                </button>
+                              </div>
+
+                              <div id="out-form-{{ p.employee.pk }}-{{ l.date|date:"Y-m-d" }}" class="hidden p-2 glass-dark rounded-lg border border-amber-500/30 space-y-2 mt-2">
+                                <label class="text-[9px] font-bold text-amber-300 block uppercase">Set Departure Time:</label>
+                                <div class="flex items-center gap-1.5">
+                                  <input type="time" id="out-time-{{ p.employee.pk }}-{{ l.date|date:"Y-m-d" }}" value="18:00" class="glass-input text-xs px-2 py-1 rounded w-full font-mono bg-black/60 text-white">
+                                  <button type="button" onclick="submitFixOutTime({{ p.employee.pk }}, '{{ l.date|date:"Y-m-d" }}')" class="bg-amber-500 hover:bg-amber-600 text-black text-[10px] font-bold px-3 py-1 rounded transition">
+                                    Save
+                                  </button>
+                                </div>
+                              </div>
+
+                            {% elif l.is_approved %}
+                              <div class="flex items-center justify-between text-[10px] text-slate-400">
+                                <span class="font-semibold text-green-400">✓ Regularized / Approved</span>
+                                <button type="button" onclick="regularizeAttendance({{ p.employee.pk }}, '{{ l.date|date:"Y-m-d" }}', 'confirm_unpaid')" class="text-slate-500 hover:text-red-400 text-[9px] underline">
+                                  Revert to Unpaid
+                                </button>
+                              </div>
+
+                            {% else %}
+                              <div class="flex items-center gap-1.5 flex-wrap">
+                                <button type="button" onclick="regularizeAttendance({{ p.employee.pk }}, '{{ l.date|date:"Y-m-d" }}', 'apply_paid_leave')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 transition">
+                                  💳 Paid Leave
+                                </button>
+                                <button type="button" onclick="regularizeAttendance({{ p.employee.pk }}, '{{ l.date|date:"Y-m-d" }}', 'mark_official_duty')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-green-400 hover:bg-green-500/20 border border-green-500/30 transition">
+                                  💼 OD
+                                </button>
+                                <button type="button" onclick="toggleTimeForm('punch-form-{{ p.employee.pk }}-{{ l.date|date:"Y-m-d" }}')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-slate-300 hover:text-white transition">
+                                  📝 Add Punch
+                                </button>
+                              </div>
+
+                              <div id="punch-form-{{ p.employee.pk }}-{{ l.date|date:"Y-m-d" }}" class="hidden p-2 glass-dark rounded-lg border border-white/10 space-y-2 mt-2">
+                                <div class="grid grid-cols-2 gap-1.5 text-[9px] font-bold text-slate-400">
+                                  <div>
+                                    <label class="block mb-0.5">Punch In:</label>
+                                    <input type="time" id="in-time-{{ p.employee.pk }}-{{ l.date|date:"Y-m-d" }}" value="09:00" class="glass-input text-xs px-1.5 py-1 rounded w-full font-mono bg-black/60 text-white">
+                                  </div>
+                                  <div>
+                                    <label class="block mb-0.5">Punch Out:</label>
+                                    <input type="time" id="manual-out-time-{{ p.employee.pk }}-{{ l.date|date:"Y-m-d" }}" value="18:00" class="glass-input text-xs px-1.5 py-1 rounded w-full font-mono bg-black/60 text-white">
+                                  </div>
+                                </div>
+                                <button type="button" onclick="submitManualAttendance({{ p.employee.pk }}, '{{ l.date|date:"Y-m-d" }}')" class="w-full bg-brand-500 hover:bg-brand-600 text-white text-[10px] font-bold py-1 rounded transition">
+                                  Save Attendance
+                                </button>
+                              </div>
+                            {% endif %}
+                          </div>
+                        </div>
+                        {% endfor %}
+                      </div>
+                      {% else %}
+                      <div class="py-4 text-center text-xs text-slate-400 italic">
+                        ✨ No leave applications or recorded absences for this month.
+                      </div>
+                      {% endif %}
+                    </div>
                   </td>
                 </tr>
                 {% empty %}
@@ -877,6 +998,19 @@
       }, 500);
     }
 
+    // --- Toggle Collapsible Leave Details Row ---
+    function toggleEmployeeLeaves(empId) {
+      const row = document.getElementById('payroll-leave-row-' + empId);
+      const icon = document.getElementById('payroll-leave-icon-' + empId);
+      if (row) {
+        const isHidden = row.classList.contains('hidden');
+        row.classList.toggle('hidden');
+        if (icon) {
+          icon.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+        }
+      }
+    }
+
     // --- EMPLOYEE HISTORICAL DETAILS MODAL ---
     async function openEmployeeModal(empId) {
       const modal = document.getElementById('employeeModal');
@@ -1030,6 +1164,185 @@
     // --- Cookie helper ---
     function getCookie(name) {
       return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='))?.split('=')[1] ?? '';
+    }
+
+    // --- Regularization JS Handlers ---
+    function toggleTimeForm(formId) {
+      const el = document.getElementById(formId);
+      if (el) el.classList.toggle('hidden');
+    }
+
+    function submitFixOutTime(empId, dateStr) {
+      const input = document.getElementById(`out-time-${empId}-${dateStr}`);
+      const timeVal = input ? input.value : '18:00';
+      regularizeAttendance(empId, dateStr, 'fix_punch_out', { punch_out_time: timeVal });
+    }
+
+    function submitManualAttendance(empId, dateStr) {
+      const inInput = document.getElementById(`in-time-${empId}-${dateStr}`);
+      const outInput = document.getElementById(`manual-out-time-${empId}-${dateStr}`);
+      const inVal = inInput ? inInput.value : '09:00';
+      const outVal = outInput ? outInput.value : '18:00';
+      regularizeAttendance(empId, dateStr, 'add_manual_attendance', { punch_in_time: inVal, punch_out_time: outVal });
+    }
+
+    async function regularizeAttendance(empId, dateStr, action, extraData = {}) {
+      try {
+        const payload = {
+          employee_id: empId,
+          date: dateStr,
+          action: action,
+          ...extraData
+        };
+
+        const res = await fetch('/employee/admin-dashboard/regularize/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, true);
+          if (data.payroll) {
+            updatePayrollRowUI(empId, data.payroll);
+          }
+        } else {
+          showToast(data.message || 'Regularization failed.', false);
+        }
+      } catch (err) {
+        showToast('Error sending regularization request.', false);
+      }
+    }
+
+    function updatePayrollRowUI(empId, payroll) {
+      const row = document.querySelector(`tr[onclick="toggleEmployeeLeaves(${empId})"]`);
+      if (row) {
+        const cells = row.querySelectorAll('td');
+        if (cells[2]) cells[2].textContent = payroll.worked_total;
+        if (cells[3]) cells[3].textContent = payroll.half_day;
+        if (cells[4]) cells[4].textContent = payroll.paid_leaves_used.toFixed(1);
+        if (cells[5]) cells[5].textContent = payroll.unpaid_days.toFixed(1);
+        if (cells[7]) {
+          cells[7].innerHTML = `₹${payroll.net_payout.toFixed(2)} <span class="block text-[9px] text-slate-500 font-normal mt-0.5 no-print">${payroll.details}</span>`;
+        }
+
+        const badge = cells[0].querySelector('span.font-mono');
+        if (badge) {
+          badge.textContent = `${payroll.leaves_count} leave${payroll.leaves_count > 1 ? 's' : ''}`;
+        }
+      }
+
+      const detailRow = document.getElementById('payroll-leave-row-' + empId);
+      if (detailRow) {
+        const grid = detailRow.querySelector('div.grid');
+        if (grid && payroll.leaves) {
+          grid.innerHTML = payroll.leaves.map(l => renderSingleLeaveCardHTML(empId, l)).join('');
+        }
+      }
+    }
+
+    function renderSingleLeaveCardHTML(empId, l) {
+      const dateStr = l.date;
+      const dateDisplay = l.date_display || l.date;
+      const isInc = l.is_incomplete;
+      const isApp = l.is_approved;
+
+      let statusBadge = '';
+      if (isInc) {
+        statusBadge = `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full border bg-amber-400/20 text-amber-300 border-amber-400/60 font-extrabold uppercase tracking-wider animate-pulse flex items-center gap-1">⚠️ Incomplete</span>`;
+      } else if (isApp) {
+        statusBadge = `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full border bg-green-500/10 text-green-400 border-green-500/25">${l.status}</span>`;
+      } else if (l.is_pending) {
+        statusBadge = `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full border bg-yellow-500/10 text-yellow-400 border-yellow-500/25">${l.status}</span>`;
+      } else {
+        statusBadge = `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full border bg-red-500/10 text-red-400 border-red-500/25">${l.status}</span>`;
+      }
+
+      let actionsHTML = '';
+      if (isInc) {
+        actionsHTML = `
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <button type="button" onclick="toggleTimeForm('out-form-${empId}-${dateStr}')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-amber-300 hover:bg-amber-500/20 border border-amber-500/30 transition">
+              🕒 Fix Out-Time
+            </button>
+            <button type="button" onclick="regularizeAttendance(${empId}, '${dateStr}', 'convert_half_day')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-slate-300 hover:text-white transition">
+              🌗 Half-Day
+            </button>
+            <button type="button" onclick="regularizeAttendance(${empId}, '${dateStr}', 'confirm_unpaid')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-red-400 hover:bg-red-500/20 transition">
+              ❌ Unpaid
+            </button>
+          </div>
+          <div id="out-form-${empId}-${dateStr}" class="hidden p-2 glass-dark rounded-lg border border-amber-500/30 space-y-2 mt-2">
+            <label class="text-[9px] font-bold text-amber-300 block uppercase">Set Departure Time:</label>
+            <div class="flex items-center gap-1.5">
+              <input type="time" id="out-time-${empId}-${dateStr}" value="18:00" class="glass-input text-xs px-2 py-1 rounded w-full font-mono bg-black/60 text-white">
+              <button type="button" onclick="submitFixOutTime(${empId}, '${dateStr}')" class="bg-amber-500 hover:bg-amber-600 text-black text-[10px] font-bold px-3 py-1 rounded transition">
+                Save
+              </button>
+            </div>
+          </div>
+        `;
+      } else if (isApp) {
+        actionsHTML = `
+          <div class="flex items-center justify-between text-[10px] text-slate-400">
+            <span class="font-semibold text-green-400">✓ Regularized / Approved</span>
+            <button type="button" onclick="regularizeAttendance(${empId}, '${dateStr}', 'confirm_unpaid')" class="text-slate-500 hover:text-red-400 text-[9px] underline">
+              Revert to Unpaid
+            </button>
+          </div>
+        `;
+      } else {
+        actionsHTML = `
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <button type="button" onclick="regularizeAttendance(${empId}, '${dateStr}', 'apply_paid_leave')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 transition">
+              💳 Paid Leave
+            </button>
+            <button type="button" onclick="regularizeAttendance(${empId}, '${dateStr}', 'mark_official_duty')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-green-400 hover:bg-green-500/20 border border-green-500/30 transition">
+              💼 OD
+            </button>
+            <button type="button" onclick="toggleTimeForm('punch-form-${empId}-${dateStr}')" class="glass-btn px-2 py-1 rounded text-[10px] font-bold text-slate-300 hover:text-white transition">
+              📝 Add Punch
+            </button>
+          </div>
+          <div id="punch-form-${empId}-${dateStr}" class="hidden p-2 glass-dark rounded-lg border border-white/10 space-y-2 mt-2">
+            <div class="grid grid-cols-2 gap-1.5 text-[9px] font-bold text-slate-400">
+              <div>
+                <label class="block mb-0.5">Punch In:</label>
+                <input type="time" id="in-time-${empId}-${dateStr}" value="09:00" class="glass-input text-xs px-1.5 py-1 rounded w-full font-mono bg-black/60 text-white">
+              </div>
+              <div>
+                <label class="block mb-0.5">Punch Out:</label>
+                <input type="time" id="manual-out-time-${empId}-${dateStr}" value="18:00" class="glass-input text-xs px-1.5 py-1 rounded w-full font-mono bg-black/60 text-white">
+              </div>
+            </div>
+            <button type="button" onclick="submitManualAttendance(${empId}, '${dateStr}')" class="w-full bg-brand-500 hover:bg-brand-600 text-white text-[10px] font-bold py-1 rounded transition">
+              Save Attendance
+            </button>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="glass p-3 rounded-xl space-y-2 shadow-sm transition-all ${isInc ? 'bg-amber-500/15 border-2 border-amber-400/80 ring-2 ring-amber-400/30 shadow-lg shadow-amber-500/20' : 'border border-white/10'}">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-mono text-xs font-bold text-white flex items-center gap-1">
+              📅 ${dateDisplay}
+            </span>
+            ${statusBadge}
+          </div>
+          <p class="text-xs font-bold ${isInc ? 'text-amber-300 font-extrabold flex items-center gap-1' : 'text-brand-400'}">
+            ${isInc ? '⚠️ ' : ''}${l.type}
+          </p>
+          ${l.remarks ? `<p class="text-[11px] font-medium italic p-1.5 rounded-lg border ${isInc ? 'bg-amber-950/60 text-amber-200 border-amber-500/30 font-semibold' : 'text-slate-300 bg-white/5 border-white/5'}">“${l.remarks}”</p>` : ''}
+          <div class="pt-2 border-t glass-divider">
+            ${actionsHTML}
+          </div>
+        </div>
+      `;
     }
   </script>
 </body>

@@ -757,7 +757,9 @@ def admin_employee_details(request, emp_id):
 
 def calculate_monthly_payroll(year: int, month: int) -> list:
     import calendar as cal_module
-    from datetime import date
+    from datetime import date, timedelta
+    from django.utils import timezone
+    from .services import is_working_day
     
     # Get all employees
     employees = Employee.objects.all().order_by("employee_code")
@@ -767,12 +769,27 @@ def calculate_monthly_payroll(year: int, month: int) -> list:
     start_date = date(year, month, 1)
     end_date = date(year, month, num_days)
     
+    today = timezone.localdate()
+    # Check working days up to today (if current month) or up to end_date (if past month)
+    check_until_date = min(end_date, today)
+
     payroll_data = []
     
     # Fetch all attendance records for that month
     attendance_records = Attendance.objects.filter(
         date__gte=start_date, date__lte=end_date
     )
+    
+    # Fetch all leave applications/records for that month
+    leave_records = LeaveRecord.objects.filter(
+        leave_date__gte=start_date, leave_date__lte=end_date
+    ).select_related("employee")
+
+    emp_leave_map = {}
+    for lr in leave_records:
+        if lr.employee_id not in emp_leave_map:
+            emp_leave_map[lr.employee_id] = []
+        emp_leave_map[lr.employee_id].append(lr)
     
     # Group attendance by employee
     emp_attendance = {}
@@ -783,22 +800,123 @@ def calculate_monthly_payroll(year: int, month: int) -> list:
         
     for emp in employees:
         records = emp_attendance.get(emp.id, [])
+        l_recs = emp_leave_map.get(emp.id, [])
         
-        # Count statuses
-        present = sum(1 for r in records if r.status == Attendance.Status.PRESENT)
-        late = sum(1 for r in records if r.status == Attendance.Status.LATE)
-        half_day = sum(1 for r in records if r.status == Attendance.Status.HALF_DAY)
-        absent = sum(1 for r in records if r.status == Attendance.Status.ABSENT)
-        incomplete = sum(1 for r in records if r.status == Attendance.Status.INCOMPLETE)
+        attn_by_date = {r.date: r for r in records}
+        leave_by_date = {lr.leave_date: lr for lr in l_recs}
+
+        leaves_list = []
         
-        # Total leave days deducted from paid balance in this month
-        paid_leaves_used = sum(r.leave_deduction for r in records if r.leave_deduction > 0.0)
-        
-        # Unpaid absences
-        unpaid_absents = sum(1 for r in records if r.status == Attendance.Status.ABSENT and r.leave_deduction == 0.0)
-        unpaid_half_days = sum(0.5 for r in records if r.status == Attendance.Status.HALF_DAY and r.leave_deduction == 0.0)
+        present = 0
+        late = 0
+        half_day = 0
+        absent_explicit = 0
+        incomplete = 0
+        unpunched_absent = 0
+        paid_leaves_used = 0.0
+        unpaid_absents = 0.0
+        unpaid_half_days = 0.0
+
+        # Count explicit attendance status counts
+        for r in records:
+            if r.status == Attendance.Status.PRESENT:
+                present += 1
+            elif r.status == Attendance.Status.LATE:
+                late += 1
+            elif r.status == Attendance.Status.HALF_DAY:
+                half_day += 1
+            elif r.status == Attendance.Status.ABSENT:
+                absent_explicit += 1
+            elif r.status == Attendance.Status.INCOMPLETE:
+                incomplete += 1
+
+        # Iterate over working days in month up to check_until_date
+        curr_date = start_date
+        while curr_date <= check_until_date:
+            # Skip if employee hasn't joined yet
+            if emp.joining_date and curr_date < emp.joining_date:
+                curr_date += timedelta(days=1)
+                continue
+
+            if is_working_day(curr_date):
+                if curr_date in leave_by_date:
+                    lr = leave_by_date[curr_date]
+                    leaves_list.append({
+                        "date": lr.leave_date,
+                        "type": f"Leave Application ({lr.get_leave_type_display()})",
+                        "status": lr.get_status_display(),
+                        "remarks": lr.remarks or "Applied Leave",
+                        "is_approved": lr.status == LeaveRecord.Status.APPROVED,
+                        "is_pending": lr.status == LeaveRecord.Status.PENDING,
+                        "is_incomplete": False,
+                    })
+                    if lr.status == LeaveRecord.Status.APPROVED:
+                        paid_leaves_used += float(lr.deduction_days)
+
+                elif curr_date in attn_by_date:
+                    r = attn_by_date[curr_date]
+                    if r.status == Attendance.Status.ABSENT:
+                        leaves_list.append({
+                            "date": r.date,
+                            "type": "Unpaid Absence" if r.leave_deduction == 0 else "Paid Leave (Full Day)",
+                            "status": "Logged Absent",
+                            "remarks": r.manual_entry_note or "Absent / No Punch Record",
+                            "is_approved": False,
+                            "is_pending": False,
+                            "is_incomplete": False,
+                        })
+                        if r.leave_deduction > 0:
+                            paid_leaves_used += float(r.leave_deduction)
+                        else:
+                            unpaid_absents += 1.0
+
+                    elif r.status == Attendance.Status.HALF_DAY:
+                        leaves_list.append({
+                            "date": r.date,
+                            "type": "Unpaid Half Day" if r.leave_deduction == 0 else "Paid Leave (Half Day)",
+                            "status": "Half Day Worked",
+                            "remarks": r.manual_entry_note or f"Worked {r.working_hours_display}",
+                            "is_approved": True,
+                            "is_pending": False,
+                            "is_incomplete": False,
+                        })
+                        if r.leave_deduction > 0:
+                            paid_leaves_used += float(r.leave_deduction)
+                        else:
+                            unpaid_half_days += 0.5
+
+                    elif r.status == Attendance.Status.INCOMPLETE:
+                        leaves_list.append({
+                            "date": r.date,
+                            "type": "Incomplete Shift (Missing Punch Out)",
+                            "status": "Incomplete",
+                            "remarks": r.manual_entry_note or f"Punched in at {r.punch_in_time_display}, no punch-out logged",
+                            "is_approved": False,
+                            "is_pending": False,
+                            "is_incomplete": True,
+                        })
+                        unpaid_absents += 1.0
+
+                else:
+                    # Employee did not punch in or out at all on this working day!
+                    unpunched_absent += 1
+                    unpaid_absents += 1.0
+                    leaves_list.append({
+                        "date": curr_date,
+                        "type": "Unapplied Absence (No Punch)",
+                        "status": "Absent (No Punch)",
+                        "remarks": "No punch-in recorded on working day",
+                        "is_approved": False,
+                        "is_pending": False,
+                        "is_incomplete": False,
+                    })
+
+            curr_date += timedelta(days=1)
+
+        leaves_list.sort(key=lambda x: x["date"])
         
         total_unpaid_days = unpaid_absents + unpaid_half_days
+        total_absent_days = absent_explicit + unpunched_absent + incomplete
         
         # Estimated Payout calculation based on Salary Type
         base_salary = float(emp.monthly_salary)
@@ -806,11 +924,11 @@ def calculate_monthly_payroll(year: int, month: int) -> list:
         details = ""
         
         if emp.salary_type == Employee.SalaryType.MONTHLY:
-            # S - unpaid_days * (S / 26)
-            daily_rate = base_salary / 26.0
+            # S - unpaid_days * (S / 30)
+            daily_rate = base_salary / 30.0
             deduction = total_unpaid_days * daily_rate
             net_payout = max(0.0, base_salary - deduction)
-            details = f"Monthly base: ₹{base_salary:,.0f} | Deducted {total_unpaid_days} unpaid days"
+            details = f"Monthly base: ₹{base_salary:,.0f} | Deducted {total_unpaid_days:.1f} unpaid days"
             
         elif emp.salary_type == Employee.SalaryType.DAILY:
             total_worked_days = (present + late) + (0.5 * half_day)
@@ -828,12 +946,261 @@ def calculate_monthly_payroll(year: int, month: int) -> list:
             "present": present,
             "late": late,
             "half_day": half_day,
-            "absent": absent + incomplete,
+            "absent": total_absent_days,
             "paid_leaves_used": float(paid_leaves_used),
             "unpaid_days": float(total_unpaid_days),
             "base_salary": base_salary,
             "net_payout": net_payout,
             "details": details,
+            "leaves": leaves_list,
         })
         
     return payroll_data
+
+
+@require_POST
+@staff_member_required
+def admin_regularize_attendance(request):
+    """
+    AJAX: Regularize attendance and leaves (Fix out-time, apply paid leave, OD, manual entry, confirm unpaid).
+    Returns updated payroll calculation for the target employee so UI updates live.
+    """
+    import json
+    from datetime import datetime, date, time
+    from django.utils import timezone
+
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON body."}, status=400)
+
+    emp_id = body.get("employee_id")
+    date_str = body.get("date")
+    action = body.get("action")
+
+    if not emp_id or not date_str or not action:
+        return JsonResponse({"success": False, "message": "Missing required fields."}, status=400)
+
+    try:
+        emp = Employee.objects.get(pk=emp_id)
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except (Employee.DoesNotExist, ValueError):
+        return JsonResponse({"success": False, "message": "Invalid employee or date format."}, status=400)
+
+    office_settings = OfficeSettings.get_settings()
+    tz = timezone.get_current_timezone()
+
+    if action == "fix_punch_out":
+        out_time_str = body.get("punch_out_time", "18:00")
+        try:
+            out_t = datetime.strptime(out_time_str, "%H:%M").time()
+        except ValueError:
+            out_t = time(18, 0)
+
+        attn, _ = Attendance.objects.get_or_create(
+            employee=emp, date=target_date,
+            defaults={"status": Attendance.Status.PRESENT, "is_manual_entry": True}
+        )
+
+        out_dt = tz.localize(datetime.combine(target_date, out_t))
+        if not attn.punch_in:
+            shift_start_t = office_settings.shift_start
+            attn.punch_in = tz.localize(datetime.combine(target_date, shift_start_t))
+
+        attn.punch_out = out_dt
+        if attn.punch_out > attn.punch_in:
+            attn.working_minutes = int((attn.punch_out - attn.punch_in).total_seconds() / 60)
+        else:
+            attn.working_minutes = 480
+
+        attn.status = Attendance.Status.PRESENT if attn.working_minutes >= 480 else Attendance.Status.HALF_DAY
+        attn.leave_deduction = 0.0
+        attn.is_manual_entry = True
+        attn.manual_entry_note = f"Out-time fixed to {out_time_str} by Admin ({request.user.username})"
+        attn.save()
+
+        AuditLog.objects.create(
+            actor=f"Admin:{request.user.username}",
+            action="FIX_PUNCH_OUT",
+            table_name="attendance_attendance",
+            record_id=attn.pk,
+            new_value={"employee": emp.employee_code, "date": str(target_date), "punch_out": out_time_str},
+            ip_address=get_client_ip(request),
+        )
+        msg = f"Fixed punch-out ({out_time_str}) for {emp.name} on {target_date}."
+
+    elif action == "convert_half_day":
+        attn, _ = Attendance.objects.get_or_create(
+            employee=emp, date=target_date,
+            defaults={"is_manual_entry": True}
+        )
+        attn.status = Attendance.Status.HALF_DAY
+        attn.leave_deduction = 0.0
+        attn.is_manual_entry = True
+        attn.manual_entry_note = f"Converted to Half-Day by Admin ({request.user.username})"
+        attn.save()
+
+        AuditLog.objects.create(
+            actor=f"Admin:{request.user.username}",
+            action="CONVERT_HALF_DAY",
+            table_name="attendance_attendance",
+            record_id=attn.pk,
+            new_value={"employee": emp.employee_code, "date": str(target_date)},
+            ip_address=get_client_ip(request),
+        )
+        msg = f"Converted {target_date} to Half-Day for {emp.name}."
+
+    elif action == "apply_paid_leave":
+        leave_rec, _ = LeaveRecord.objects.get_or_create(
+            employee=emp, leave_date=target_date,
+            defaults={
+                "leave_type": LeaveRecord.LeaveType.FULL,
+                "status": LeaveRecord.Status.APPROVED,
+                "remarks": f"Paid Leave Granted by Admin ({request.user.username})"
+            }
+        )
+        leave_rec.status = LeaveRecord.Status.APPROVED
+        leave_rec.approved_by = request.user.username
+        leave_rec.save()
+
+        balance = LeaveBalance.get_or_create_for_year(emp, target_date.year)
+        balance.used = balance.used + 1.0
+        balance.save(update_fields=["used", "updated_at"])
+
+        attn, _ = Attendance.objects.get_or_create(
+            employee=emp, date=target_date,
+            defaults={"is_manual_entry": True}
+        )
+        attn.status = Attendance.Status.PRESENT
+        attn.leave_deduction = 1.0
+        attn.is_manual_entry = True
+        attn.manual_entry_note = f"Covered by Paid Leave ({request.user.username})"
+        attn.save()
+
+        AuditLog.objects.create(
+            actor=f"Admin:{request.user.username}",
+            action="APPLY_PAID_LEAVE",
+            table_name="attendance_leaverecord",
+            record_id=leave_rec.pk,
+            new_value={"employee": emp.employee_code, "date": str(target_date)},
+            ip_address=get_client_ip(request),
+        )
+        msg = f"Granted Paid Leave for {emp.name} on {target_date}."
+
+    elif action == "mark_official_duty":
+        attn, _ = Attendance.objects.get_or_create(
+            employee=emp, date=target_date,
+            defaults={"is_manual_entry": True}
+        )
+        attn.status = Attendance.Status.PRESENT
+        attn.leave_deduction = 0.0
+        attn.is_manual_entry = True
+        attn.manual_entry_note = f"Official Duty (OD) approved by Admin ({request.user.username})"
+        attn.save()
+
+        AuditLog.objects.create(
+            actor=f"Admin:{request.user.username}",
+            action="MARK_OD",
+            table_name="attendance_attendance",
+            record_id=attn.pk,
+            new_value={"employee": emp.employee_code, "date": str(target_date)},
+            ip_address=get_client_ip(request),
+        )
+        msg = f"Marked Official Duty (OD) for {emp.name} on {target_date}."
+
+    elif action == "add_manual_attendance":
+        in_str = body.get("punch_in_time", "09:00")
+        out_str = body.get("punch_out_time", "18:00")
+        try:
+            in_t = datetime.strptime(in_str, "%H:%M").time()
+            out_t = datetime.strptime(out_str, "%H:%M").time()
+        except ValueError:
+            in_t, out_t = time(9, 0), time(18, 0)
+
+        in_dt = tz.localize(datetime.combine(target_date, in_t))
+        out_dt = tz.localize(datetime.combine(target_date, out_t))
+
+        attn, _ = Attendance.objects.get_or_create(
+            employee=emp, date=target_date,
+            defaults={"is_manual_entry": True}
+        )
+        attn.punch_in = in_dt
+        attn.punch_out = out_dt
+        attn.working_minutes = int((out_dt - in_dt).total_seconds() / 60) if out_dt > in_dt else 480
+        attn.status = Attendance.Status.PRESENT
+        attn.leave_deduction = 0.0
+        attn.is_manual_entry = True
+        attn.manual_entry_note = f"Manual attendance ({in_str} - {out_str}) by Admin ({request.user.username})"
+        attn.save()
+
+        AuditLog.objects.create(
+            actor=f"Admin:{request.user.username}",
+            action="ADD_MANUAL_ATTENDANCE",
+            table_name="attendance_attendance",
+            record_id=attn.pk,
+            new_value={"employee": emp.employee_code, "date": str(target_date)},
+            ip_address=get_client_ip(request),
+        )
+        msg = f"Added manual attendance for {emp.name} on {target_date}."
+
+    elif action == "confirm_unpaid":
+        attn, _ = Attendance.objects.get_or_create(
+            employee=emp, date=target_date,
+            defaults={"is_manual_entry": True}
+        )
+        attn.status = Attendance.Status.ABSENT
+        attn.leave_deduction = 0.0
+        attn.is_manual_entry = True
+        attn.manual_entry_note = f"Confirmed Unpaid Absence by Admin ({request.user.username})"
+        attn.save()
+
+        AuditLog.objects.create(
+            actor=f"Admin:{request.user.username}",
+            action="CONFIRM_UNPAID_ABSENCE",
+            table_name="attendance_attendance",
+            record_id=attn.pk,
+            new_value={"employee": emp.employee_code, "date": str(target_date)},
+            ip_address=get_client_ip(request),
+        )
+        msg = f"Confirmed Unpaid Absence for {emp.name} on {target_date}."
+
+    else:
+        return JsonResponse({"success": False, "message": "Unknown action type."}, status=400)
+
+    # Recalculate payroll
+    updated_payroll_list = calculate_monthly_payroll(target_date.year, target_date.month)
+    emp_payroll = next((p for p in updated_payroll_list if p["employee"].pk == emp.pk), None)
+
+    if emp_payroll:
+        emp_payroll_serializable = {
+            "employee_pk": emp.pk,
+            "present": emp_payroll["present"],
+            "late": emp_payroll["late"],
+            "worked_total": emp_payroll["present"] + emp_payroll["late"],
+            "half_day": emp_payroll["half_day"],
+            "absent": emp_payroll["absent"],
+            "paid_leaves_used": float(emp_payroll["paid_leaves_used"]),
+            "unpaid_days": float(emp_payroll["unpaid_days"]),
+            "base_salary": float(emp_payroll["base_salary"]),
+            "net_payout": float(emp_payroll["net_payout"]),
+            "details": emp_payroll["details"],
+            "leaves_count": len(emp_payroll["leaves"]),
+            "leaves": [{
+                "date": str(l["date"]),
+                "date_display": l["date"].strftime("%d %b %Y"),
+                "type": l["type"],
+                "status": l["status"],
+                "remarks": l["remarks"],
+                "is_approved": l.get("is_approved", False),
+                "is_pending": l.get("is_pending", False),
+                "is_incomplete": l.get("is_incomplete", False),
+            } for l in emp_payroll["leaves"]]
+        }
+    else:
+        emp_payroll_serializable = None
+
+    return JsonResponse({
+        "success": True,
+        "message": msg,
+        "payroll": emp_payroll_serializable
+    })

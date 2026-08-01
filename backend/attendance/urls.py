@@ -24,4 +24,5 @@ urlpatterns = [
     path("admin-dashboard/leave/<int:leave_id>/approve/", views.admin_approve_leave, name="admin_approve_leave"),
     path("admin-dashboard/leave/<int:leave_id>/reject/", views.admin_reject_leave, name="admin_reject_leave"),
     path("admin-dashboard/employee/<int:emp_id>/details/", views.admin_employee_details, name="admin_employee_details"),
+    path("admin-dashboard/regularize/", views.admin_regularize_attendance, name="admin_regularize_attendance"),
 ]
