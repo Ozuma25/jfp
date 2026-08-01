@@ -228,6 +228,13 @@ class ProductImage(models.Model):
     def __str__(self):
         return f"{self.product_id}:{self.sort_order}"
 
+    @property
+    def image_url(self) -> str:
+        try:
+            return self.image.url if self.image else ""
+        except Exception:
+            return ""
+
 
 class ProductVariant(models.Model):
     """A color/size/material permutation of a product."""

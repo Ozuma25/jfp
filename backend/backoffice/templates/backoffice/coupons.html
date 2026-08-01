@@ -1,0 +1,129 @@
+{% extends 'backoffice/base_admin.html' %}
+
+{% block title %}Coupons & Promotions Manager{% endblock %}
+
+{% block content %}
+<!-- Header Bar -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 rounded-3xl">
+  <div>
+    <h1 class="text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
+      <span>🎟️</span> Coupons & Promotions Manager
+    </h1>
+    <p class="text-xs text-slate-400 mt-1">Create promotional discount codes, track usage metrics, or toggle campaign visibility.</p>
+  </div>
+
+  <div>
+    <button onclick="openCouponModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs shadow-lg shadow-brand-500/25 transition">
+      <span>➕</span> Create Coupon
+    </button>
+  </div>
+</div>
+
+<!-- Coupons Table -->
+<div class="glass-card rounded-3xl overflow-hidden border border-white/10">
+  <div class="overflow-x-auto custom-scrollbar">
+    <table class="w-full text-left border-collapse">
+      <thead>
+        <tr class="border-b border-white/5 bg-slate-900/80 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+          <th class="py-3.5 px-5">Coupon Code</th>
+          <th class="py-3.5 px-4">Discount Type</th>
+          <th class="py-3.5 px-4 text-right">Discount Value</th>
+          <th class="py-3.5 px-4 text-center">Times Used</th>
+          <th class="py-3.5 px-4 text-center">Max Uses</th>
+          <th class="py-3.5 px-4 text-center">Status</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-white/5 text-xs">
+        {% for c in coupons %}
+        <tr class="hover:bg-white/[0.02] transition">
+          <td class="py-4 px-5">
+            <span class="font-mono font-extrabold text-brand-400 text-sm px-2.5 py-1 rounded-lg bg-brand-500/10 border border-brand-500/30 inline-block">
+              {{ c.code }}
+            </span>
+          </td>
+          <td class="py-4 px-4 font-semibold text-slate-300 capitalize">
+            {{ c.discount_type }}
+          </td>
+          <td class="py-4 px-4 text-right font-mono font-bold text-emerald-400 text-sm">
+            {% if c.discount_type == 'percent' %}
+            {{ c.discount_value|floatformat:0 }}%
+            {% else %}
+            ₹{{ c.discount_value|floatformat:2 }}
+            {% endif %}
+          </td>
+          <td class="py-4 px-4 text-center font-mono font-bold text-white">
+            {{ c.usage_count }}
+          </td>
+          <td class="py-4 px-4 text-center font-mono text-slate-400">
+            {{ c.max_uses|default:"Unlimited" }}
+          </td>
+          <td class="py-4 px-4 text-center">
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider {% if c.active %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/30{% else %}bg-slate-800 text-slate-400{% endif %}">
+              {% if c.active %}Active{% else %}Expired/Inactive{% endif %}
+            </span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="py-12 text-center text-slate-500 italic text-xs">No coupon codes created yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Create Coupon -->
+<div id="couponModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+  <div class="glass-card w-full max-w-md rounded-3xl p-6 border border-white/20 shadow-2xl space-y-4">
+    <div class="flex items-center justify-between border-b border-white/10 pb-3">
+      <h3 class="font-extrabold text-white text-base">Create Discount Coupon</h3>
+      <button onclick="closeCouponModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+    </div>
+
+    <form method="POST" action="{% url 'backoffice:coupon_save' %}" class="space-y-4 text-xs">
+      {% csrf_token %}
+
+      <div class="space-y-1">
+        <label class="font-bold text-slate-300">Coupon Code *</label>
+        <input type="text" name="code" placeholder="e.g. FESTIVE2026" required class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono uppercase placeholder-slate-500 focus:outline-none focus:border-brand-500"/>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1">
+          <label class="font-bold text-slate-300">Discount Type *</label>
+          <select name="discount_type" required class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-brand-500">
+            <option value="fixed">Fixed Amount (₹)</option>
+            <option value="percent">Percentage (%)</option>
+          </select>
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-slate-300">Discount Value *</label>
+          <input type="number" step="0.01" name="discount_value" required class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-brand-500"/>
+        </div>
+      </div>
+
+      <div class="space-y-1">
+        <label class="font-bold text-slate-300">Maximum Allowed Uses (Optional)</label>
+        <input type="number" name="max_uses" placeholder="Leave empty for unlimited" class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono placeholder-slate-500 focus:outline-none focus:border-brand-500"/>
+      </div>
+
+      <div class="flex justify-end gap-2.5 pt-3 border-t border-white/10">
+        <button type="button" onclick="closeCouponModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition">Cancel</button>
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-brand-500 text-white font-bold hover:bg-brand-600 transition shadow-lg shadow-brand-500/25">Create Coupon</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openCouponModal() {
+    document.getElementById('couponModal').classList.remove('hidden');
+  }
+  function closeCouponModal() {
+    document.getElementById('couponModal').classList.add('hidden');
+  }
+</script>
+{% endblock %}

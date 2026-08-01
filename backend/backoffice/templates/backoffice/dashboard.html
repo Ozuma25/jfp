@@ -1,0 +1,236 @@
+{% extends 'backoffice/base_admin.html' %}
+
+{% block title %}Executive Dashboard{% endblock %}
+
+{% block content %}
+<!-- Welcome & Quick Action Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-6 rounded-3xl">
+  <div>
+    <div class="flex items-center gap-2">
+      <h1 class="text-xl font-extrabold text-white tracking-tight">Executive Dashboard</h1>
+      <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">Live Data</span>
+    </div>
+    <p class="text-xs text-slate-400 mt-1">Real-time overview of sales, active fulfillment, catalog health, and customer quotes.</p>
+  </div>
+
+  <div class="flex items-center gap-2.5">
+    <a href="{% url 'backoffice:products' %}" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs shadow-lg shadow-brand-500/25 transition">
+      <span>➕</span> Add New Product
+    </a>
+    <a href="{% url 'backoffice:orders' %}" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 hover:border-white/20 text-slate-200 text-xs font-bold transition">
+      <span>🛍️</span> View Orders
+    </a>
+  </div>
+</div>
+
+<!-- 4 Key Performance Metrics -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  
+  <!-- Metric 1: Total Gross Revenue -->
+  <div class="glass-card glass-card-hover p-5 rounded-3xl relative overflow-hidden">
+    <div class="flex items-center justify-between">
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Gross Revenue</span>
+      <div class="w-9 h-9 rounded-2xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-base">
+        💰
+      </div>
+    </div>
+    <div class="mt-3">
+      <div class="text-2xl font-black text-white font-mono">₹{{ total_revenue|floatformat:2 }}</div>
+      <div class="flex items-center gap-1.5 mt-1 text-[11px] text-emerald-400 font-semibold">
+        <span>📈</span> Monthly Sales: ₹{{ monthly_revenue|floatformat:2 }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Metric 2: Orders Count & Active Fulfillment -->
+  <div class="glass-card glass-card-hover p-5 rounded-3xl relative overflow-hidden">
+    <div class="flex items-center justify-between">
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Orders</span>
+      <div class="w-9 h-9 rounded-2xl bg-brand-500/15 text-brand-400 border border-brand-500/30 flex items-center justify-center text-base">
+        🛍️
+      </div>
+    </div>
+    <div class="mt-3">
+      <div class="text-2xl font-black text-white font-mono">{{ total_orders_count }}</div>
+      <div class="flex items-center gap-1.5 mt-1 text-[11px] text-brand-400 font-semibold">
+        <span>⏳</span> {{ pending_orders_count }} Pending / In Progress
+      </div>
+    </div>
+  </div>
+
+  <!-- Metric 3: Total Products & Catalog Health -->
+  <div class="glass-card glass-card-hover p-5 rounded-3xl relative overflow-hidden">
+    <div class="flex items-center justify-between">
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Catalog</span>
+      <div class="w-9 h-9 rounded-2xl bg-blue-500/15 text-blue-400 border border-blue-500/30 flex items-center justify-center text-base">
+        📦
+      </div>
+    </div>
+    <div class="mt-3">
+      <div class="text-2xl font-black text-white font-mono">{{ total_products_count }}</div>
+      <div class="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400 font-semibold">
+        <span>🏷️</span> Active Store Products
+      </div>
+    </div>
+  </div>
+
+  <!-- Metric 4: Low Stock Warnings -->
+  <div class="glass-card glass-card-hover p-5 rounded-3xl relative overflow-hidden">
+    <div class="flex items-center justify-between">
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Low Stock Warning</span>
+      <div class="w-9 h-9 rounded-2xl bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center justify-center text-base">
+        ⚠️
+      </div>
+    </div>
+    <div class="mt-3">
+      <div class="text-2xl font-black text-white font-mono">{{ low_stock_count }}</div>
+      <div class="flex items-center gap-1.5 mt-1 text-[11px] {% if low_stock_count > 0 %}text-amber-400 font-bold{% else %}text-slate-400{% endif %}">
+        <span>📦</span> Re-order threshold reach
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Main Content Two-Column Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Left 2-Columns: Recent Orders Grid -->
+  <div class="lg:col-span-2 space-y-6">
+    <div class="glass-card rounded-3xl overflow-hidden border border-white/10">
+      
+      <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between">
+        <div>
+          <h2 class="font-extrabold text-white text-sm uppercase tracking-wider">Recent E-Commerce Orders</h2>
+          <p class="text-[11px] text-slate-400 mt-0.5">Latest customer orders across all payment channels</p>
+        </div>
+        <a href="{% url 'backoffice:orders' %}" class="text-xs font-bold text-brand-400 hover:text-brand-300 transition">View All Orders &rarr;</a>
+      </div>
+
+      <div class="overflow-x-auto custom-scrollbar">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-white/5 bg-slate-900/60 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+              <th class="py-3 px-5">Order ID</th>
+              <th class="py-3 px-5">Customer</th>
+              <th class="py-3 px-5">Amount</th>
+              <th class="py-3 px-5">Shipping Method</th>
+              <th class="py-3 px-5 text-center">Status</th>
+              <th class="py-3 px-5 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5 text-xs">
+            {% for order in recent_orders %}
+            <tr class="hover:bg-white/[0.02] transition">
+              <td class="py-3.5 px-5 font-mono font-bold text-white">#{{ order.pk }}</td>
+              <td class="py-3.5 px-5">
+                <div class="font-bold text-white">{{ order.shipping_name }}</div>
+                <div class="text-[10px] text-slate-400 font-mono">{{ order.shipping_phone }}</div>
+              </td>
+              <td class="py-3.5 px-5 font-bold font-mono text-emerald-400">₹{{ order.total|floatformat:2 }}</td>
+              <td class="py-3.5 px-5 text-slate-300 capitalize text-[11px]">{{ order.get_shipping_method_display }}</td>
+              <td class="py-3.5 px-5 text-center">
+                <span class="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                  {% if order.status == 'paid' or order.status == 'delivered' %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/30
+                  {% elif order.status == 'processing' or order.status == 'shipped' %}bg-blue-500/15 text-blue-400 border border-blue-500/30
+                  {% elif order.status == 'pending_payment' %}bg-amber-500/15 text-amber-400 border border-amber-500/30
+                  {% else %}bg-red-500/15 text-red-400 border border-red-500/30{% endif %}">
+                  {{ order.get_status_display }}
+                </span>
+              </td>
+              <td class="py-3.5 px-5 text-right">
+                <a href="{% url 'backoffice:order_invoice' order.pk %}" target="_blank" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold border border-white/10 transition inline-block">
+                  🧾 Invoice
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="py-8 text-center text-slate-500 italic text-xs">No orders recorded yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Right Column: Low Stock Alerts & Quote Requests -->
+  <div class="space-y-6">
+    
+    <!-- Low Stock Inventory Card -->
+    <div class="glass-card rounded-3xl p-5 border border-white/10 space-y-4">
+      <div class="flex items-center justify-between border-b border-white/5 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">⚠️</span>
+          <h2 class="font-extrabold text-white text-xs uppercase tracking-wider">Low Stock Inventory Alerts</h2>
+        </div>
+        <a href="{% url 'backoffice:products' %}?stock=low_stock" class="text-[11px] font-bold text-brand-400 hover:text-brand-300">View All</a>
+      </div>
+
+      <div class="space-y-2.5">
+        {% for prod in low_stock_list %}
+        <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-900/70 border border-white/5 hover:border-amber-500/30 transition">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-slate-400 text-xs overflow-hidden">
+              {% if prod.images.first and prod.images.first.image_url %}
+              <img src="{{ prod.images.first.image_url }}" alt="{{ prod.name }}" class="w-full h-full object-cover"/>
+              {% else %}
+              📦
+              {% endif %}
+            </div>
+            <div>
+              <div class="font-bold text-white text-xs line-clamp-1">{{ prod.name }}</div>
+              <div class="text-[10px] text-slate-400 font-mono">SKU: {{ prod.sku|default:"—" }}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              {{ prod.stock }} left
+            </span>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-center text-slate-500 italic text-xs py-4">All stock levels are optimal!</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Recent Bulk B2B Quote Requests -->
+    <div class="glass-card rounded-3xl p-5 border border-white/10 space-y-4">
+      <div class="flex items-center justify-between border-b border-white/5 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">💼</span>
+          <h2 class="font-extrabold text-white text-xs uppercase tracking-wider">B2B Bulk Quote Requests</h2>
+        </div>
+        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400">{{ pending_quotes_count }} Pending</span>
+      </div>
+
+      <div class="space-y-2.5">
+        {% for quote in recent_quotes %}
+        <div class="p-3 rounded-2xl bg-slate-900/70 border border-white/5 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-xs">{{ quote.name }}</span>
+            <span class="text-[9px] font-mono uppercase px-2 py-0.2 rounded font-bold {% if quote.status == 'pending' %}bg-amber-500/20 text-amber-300{% else %}bg-emerald-500/20 text-emerald-300{% endif %}">
+              {{ quote.get_status_display }}
+            </span>
+          </div>
+          <div class="text-[11px] text-slate-300">
+            <span class="font-semibold text-brand-400">{{ quote.product.name }}</span> &times; {{ quote.quantity }} pcs
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono flex items-center justify-between">
+            <span>📞 {{ quote.phone }}</span>
+            <span>{{ quote.created_at|date:"d M Y" }}</span>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-center text-slate-500 italic text-xs py-4">No pending quote requests.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

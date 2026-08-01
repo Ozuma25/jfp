@@ -1,0 +1,365 @@
+{% extends 'backoffice/base_admin.html' %}
+
+{% block title %}Catalog & Inventory Manager{% endblock %}
+
+{% block content %}
+<!-- Header Bar with Filters & Action Buttons -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 rounded-3xl">
+  <div>
+    <h1 class="text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
+      <span>📦</span> Catalog & Inventory Manager
+    </h1>
+    <p class="text-xs text-slate-400 mt-1">Manage {{ total_count }} product listings, adjust inventory stock in real-time, or import bulk Excel files.</p>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-2.5">
+    <button onclick="openProductModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs shadow-lg shadow-brand-500/25 transition">
+      <span>➕</span> Add Product
+    </button>
+    <button onclick="openBulkImportModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 hover:border-brand-500/40 text-slate-200 text-xs font-bold transition">
+      <span>📤</span> Bulk Excel Import
+    </button>
+  </div>
+</div>
+
+<!-- Search & Filter Controls -->
+<div class="glass-card p-4 rounded-2xl border border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+  
+  <form method="GET" class="w-full md:w-auto flex-1 flex flex-wrap items-center gap-3">
+    <!-- Search Query -->
+    <div class="relative flex-1 min-w-[220px]">
+      <input type="text" name="q" value="{{ search_query }}" placeholder="Search by name, SKU, description..." class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 pl-10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 transition"/>
+      <span class="absolute left-3.5 top-2.5 text-slate-500 text-xs">🔍</span>
+    </div>
+
+    <!-- Category Filter -->
+    <select name="category" onchange="this.form.submit()" class="bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition">
+      <option value="">All Categories</option>
+      {% for cat in categories %}
+      <option value="{{ cat.pk }}" {% if selected_category == cat.pk|stringformat:"i" %}selected{% endif %}>{{ cat.name }}</option>
+      {% endfor %}
+    </select>
+
+    <!-- Stock Status Filter -->
+    <select name="stock" onchange="this.form.submit()" class="bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition">
+      <option value="">All Stock Levels</option>
+      <option value="in_stock" {% if selected_stock == 'in_stock' %}selected{% endif %}>In Stock (>15)</option>
+      <option value="low_stock" {% if selected_stock == 'low_stock' %}selected{% endif %}>Low Stock (1-15)</option>
+      <option value="out_of_stock" {% if selected_stock == 'out_of_stock' %}selected{% endif %}>Out of Stock (0)</option>
+    </select>
+
+    <button type="submit" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition">
+      Filter
+    </button>
+    {% if search_query or selected_category or selected_stock %}
+    <a href="{% url 'backoffice:products' %}" class="text-xs text-red-400 hover:underline">Reset</a>
+    {% endif %}
+  </form>
+
+</div>
+
+<!-- Products Data Grid -->
+<div class="glass-card rounded-3xl overflow-hidden border border-white/10">
+  <div class="overflow-x-auto custom-scrollbar">
+    <table class="w-full text-left border-collapse">
+      <thead>
+        <tr class="border-b border-white/5 bg-slate-900/80 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+          <th class="py-3.5 px-5">Product</th>
+          <th class="py-3.5 px-4">Category</th>
+          <th class="py-3.5 px-4">SKU</th>
+          <th class="py-3.5 px-4 text-right">Price (₹)</th>
+          <th class="py-3.5 px-4 text-center">Stock Quantity</th>
+          <th class="py-3.5 px-4 text-center">Status</th>
+          <th class="py-3.5 px-5 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-white/5 text-xs">
+        {% for prod in products %}
+        <tr class="hover:bg-white/[0.02] transition" id="product-row-{{ prod.pk }}">
+          
+          <!-- Product Name & Image -->
+          <td class="py-4 px-5">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-2xl bg-slate-900 border border-white/10 flex items-center justify-center font-bold text-slate-500 overflow-hidden flex-shrink-0">
+                {% if prod.images.first and prod.images.first.image_url %}
+                <img src="{{ prod.images.first.image_url }}" alt="{{ prod.name }}" class="w-full h-full object-cover"/>
+                {% else %}
+                📦
+                {% endif %}
+              </div>
+              <div>
+                <div class="font-bold text-white text-sm line-clamp-1">{{ prod.name }}</div>
+                <div class="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{{ prod.description|default:"No description" }}</div>
+              </div>
+            </div>
+          </td>
+
+          <!-- Category -->
+          <td class="py-4 px-4 font-semibold text-slate-300">
+            {{ prod.category.name|default:"Uncategorized" }}
+          </td>
+
+          <!-- SKU -->
+          <td class="py-4 px-4 font-mono font-bold text-slate-400 text-[11px]">
+            {{ prod.sku|default:"—" }}
+          </td>
+
+          <!-- Price -->
+          <td class="py-4 px-4 text-right font-mono font-bold text-emerald-400">
+            ₹{{ prod.price|floatformat:2 }}
+            {% if prod.compare_at_price %}
+            <span class="block text-[10px] text-slate-400 line-through">₹{{ prod.compare_at_price|floatformat:2 }}</span>
+            {% endif %}
+          </td>
+
+          <!-- Inline Quick Stock Editor -->
+          <td class="py-4 px-4 text-center">
+            <div class="inline-flex items-center justify-center gap-1.5 bg-slate-900/90 border border-white/10 rounded-xl p-1">
+              <button onclick="adjustStock({{ prod.pk }}, -1)" class="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center transition">-</button>
+              <input type="number" id="stock-input-{{ prod.pk }}" value="{{ prod.stock }}" onchange="updateStock({{ prod.pk }}, this.value)" class="w-12 bg-transparent text-center font-mono font-bold text-white text-xs focus:outline-none"/>
+              <button onclick="adjustStock({{ prod.pk }}, 1)" class="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center transition">+</button>
+            </div>
+          </td>
+
+          <!-- Status Toggle -->
+          <td class="py-4 px-4 text-center">
+            <button onclick="toggleProductActive({{ prod.pk }})" id="status-badge-{{ prod.pk }}" class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition cursor-pointer {% if prod.is_active %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/30{% else %}bg-slate-800 text-slate-400 border border-white/10{% endif %}">
+              {% if prod.is_active %}Active{% else %}Inactive{% endif %}
+            </button>
+          </td>
+
+          <!-- Actions -->
+          <td class="py-4 px-5 text-right space-x-1">
+            <button onclick="editProduct({{ prod.pk }}, '{{ prod.name|escapejs }}', '{{ prod.sku|escapejs }}', '{{ prod.category.pk|default:'' }}', '{{ prod.price }}', '{{ prod.compare_at_price|default:'' }}', {{ prod.stock }}, '{{ prod.description|escapejs }}', {{ prod.is_active|yesno:'true,false' }})" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-white/10 transition inline-block">
+              ✏️ Edit
+            </button>
+          </td>
+
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="py-12 text-center text-slate-500 italic text-xs">No products match your criteria.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination Bar -->
+  {% if products.has_other_pages %}
+  <div class="px-6 py-4 border-t border-white/5 bg-slate-900/40 flex items-center justify-between text-xs">
+    <span class="text-slate-400">Page {{ products.number }} of {{ products.paginator.num_pages }}</span>
+    <div class="flex items-center gap-1.5">
+      {% if products.has_previous %}
+      <a href="?page={{ products.previous_page_number }}&q={{ search_query }}&category={{ selected_category }}&stock={{ selected_stock }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold">Previous</a>
+      {% endif %}
+      {% if products.has_next %}
+      <a href="?page={{ products.next_page_number }}&q={{ search_query }}&category={{ selected_category }}&stock={{ selected_stock }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold">Next</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Modal 1: Add / Edit Product Modal -->
+<div id="productModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+  <div class="glass-card w-full max-w-xl rounded-3xl p-6 border border-white/20 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+    <div class="flex items-center justify-between border-b border-white/10 pb-3">
+      <h3 class="font-extrabold text-white text-base" id="modalTitle">Add New Product</h3>
+      <button onclick="closeProductModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+    </div>
+
+    <form method="POST" action="{% url 'backoffice:product_save' %}" enctype="multipart/form-data" class="space-y-4 text-xs">
+      {% csrf_token %}
+      <input type="hidden" name="product_id" id="mProdId" value=""/>
+
+      <div class="space-y-1">
+        <label class="font-bold text-slate-300">Product Name *</label>
+        <input type="text" name="name" id="mProdName" required class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"/>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1">
+          <label class="font-bold text-slate-300">SKU Code</label>
+          <input type="text" name="sku" id="mProdSku" class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono placeholder-slate-500 focus:outline-none focus:border-brand-500"/>
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-slate-300">Category *</label>
+          <select name="category_id" id="mProdCategory" required class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-brand-500">
+            <option value="">Select Category</option>
+            {% for cat in categories %}
+            <option value="{{ cat.pk }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4">
+        <div class="space-y-1">
+          <label class="font-bold text-slate-300">Price (₹) *</label>
+          <input type="number" step="0.01" name="price" id="mProdPrice" required class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-brand-500"/>
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-slate-300">Original / Compare Price (₹)</label>
+          <input type="number" step="0.01" name="compare_at_price" id="mProdDiscountPrice" class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-brand-500"/>
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-slate-300">Stock Quantity *</label>
+          <input type="number" name="stock" id="mProdStock" required class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-brand-500"/>
+        </div>
+      </div>
+
+      <div class="space-y-1">
+        <label class="font-bold text-slate-300">Description</label>
+        <textarea name="description" id="mProdDesc" rows="3" class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"></textarea>
+      </div>
+
+      <div class="space-y-1">
+        <label class="font-bold text-slate-300">Product Primary Image</label>
+        <input type="file" name="image_file" accept="image/*" class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2 text-slate-300 focus:outline-none"/>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <input type="checkbox" name="is_active" id="mProdActive" class="w-4 h-4 accent-brand-500 rounded cursor-pointer" checked/>
+        <label for="mProdActive" class="font-bold text-white cursor-pointer">Active in Store Catalog</label>
+      </div>
+
+      <div class="flex justify-end gap-2.5 pt-4 border-t border-white/10">
+        <button type="button" onclick="closeProductModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition">Cancel</button>
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-brand-500 text-white font-bold hover:bg-brand-600 transition shadow-lg shadow-brand-500/25">Save Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 2: Bulk Excel Import Modal -->
+<div id="bulkImportModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+  <div class="glass-card w-full max-w-md rounded-3xl p-6 border border-white/20 shadow-2xl space-y-4">
+    <div class="flex items-center justify-between border-b border-white/10 pb-3">
+      <h3 class="font-extrabold text-white text-base">Bulk Excel / CSV Import</h3>
+      <button onclick="closeBulkImportModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+    </div>
+
+    <form method="POST" action="{% url 'backoffice:bulk_import' %}" enctype="multipart/form-data" class="space-y-4 text-xs">
+      {% csrf_token %}
+      
+      <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-white/10 space-y-1.5 text-slate-300">
+        <p class="font-bold text-white">Expected Excel Header Columns:</p>
+        <code class="block text-[10px] font-mono bg-black/50 p-2 rounded text-brand-300">name | sku | category | price | stock_quantity | description</code>
+        <p class="text-[10px] text-slate-400">Products with matching SKU will be updated automatically.</p>
+      </div>
+
+      <div class="space-y-1">
+        <label class="font-bold text-slate-300">Upload Excel (.xlsx) or CSV File</label>
+        <input type="file" name="import_file" accept=".xlsx, .xls, .csv" required class="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-slate-300 focus:outline-none"/>
+      </div>
+
+      <div class="flex justify-end gap-2.5 pt-3 border-t border-white/10">
+        <button type="button" onclick="closeBulkImportModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition">Cancel</button>
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-brand-500 text-white font-bold hover:bg-brand-600 transition">Upload & Import</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openProductModal() {
+    document.getElementById('modalTitle').textContent = "Add New Product";
+    document.getElementById('mProdId').value = "";
+    document.getElementById('mProdName').value = "";
+    document.getElementById('mProdSku').value = "";
+    document.getElementById('mProdCategory').value = "";
+    document.getElementById('mProdPrice').value = "";
+    document.getElementById('mProdDiscountPrice').value = "";
+    document.getElementById('mProdStock').value = "0";
+    document.getElementById('mProdDesc').value = "";
+    document.getElementById('mProdActive').checked = true;
+    document.getElementById('productModal').classList.remove('hidden');
+  }
+
+  function editProduct(id, name, sku, catId, price, discountPrice, stock, desc, isActive) {
+    document.getElementById('modalTitle').textContent = "Edit Product";
+    document.getElementById('mProdId').value = id;
+    document.getElementById('mProdName').value = name;
+    document.getElementById('mProdSku').value = sku;
+    document.getElementById('mProdCategory').value = catId;
+    document.getElementById('mProdPrice').value = price;
+    document.getElementById('mProdDiscountPrice').value = discountPrice;
+    document.getElementById('mProdStock').value = stock;
+    document.getElementById('mProdDesc').value = desc;
+    document.getElementById('mProdActive').checked = isActive;
+    document.getElementById('productModal').classList.remove('hidden');
+  }
+
+  function closeProductModal() {
+    document.getElementById('productModal').classList.add('hidden');
+  }
+
+  function openBulkImportModal() {
+    document.getElementById('bulkImportModal').classList.remove('hidden');
+  }
+
+  function closeBulkImportModal() {
+    document.getElementById('bulkImportModal').classList.add('hidden');
+  }
+
+  async function adjustStock(productId, delta) {
+    const input = document.getElementById(`stock-input-${productId}`);
+    let currentVal = parseInt(input.value) || 0;
+    let newVal = Math.max(0, currentVal + delta);
+    input.value = newVal;
+    await updateStock(productId, newVal);
+  }
+
+  async function updateStock(productId, newStock) {
+    try {
+      const response = await fetch("{% url 'backoffice:stock_update' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({ product_id: productId, stock: newStock })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast(data.message, true);
+      } else {
+        showToast(data.message, false);
+      }
+    } catch (err) {
+      showToast("Error updating stock.", false);
+    }
+  }
+
+  async function toggleProductActive(productId) {
+    try {
+      const response = await fetch("{% url 'backoffice:toggle_active' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({ product_id: productId })
+      });
+      const data = await response.json();
+      if (data.success) {
+        const badge = document.getElementById(`status-badge-${productId}`);
+        badge.textContent = data.is_active ? "Active" : "Inactive";
+        if (data.is_active) {
+          badge.className = "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition cursor-pointer bg-emerald-500/15 text-emerald-400 border border-emerald-500/30";
+        } else {
+          badge.className = "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition cursor-pointer bg-slate-800 text-slate-400 border border-white/10";
+        }
+        showToast(data.message, true);
+      } else {
+        showToast(data.message, false);
+      }
+    } catch (err) {
+      showToast("Error toggling product status.", false);
+    }
+  }
+</script>
+{% endblock %}

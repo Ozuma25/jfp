@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "wishlist",
     "coupons",
     "attendance",
+    "backoffice",
 ]
 
 MIDDLEWARE = [

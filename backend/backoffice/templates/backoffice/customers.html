@@ -1,0 +1,125 @@
+{% extends 'backoffice/base_admin.html' %}
+
+{% block title %}Customer Accounts Directory{% endblock %}
+
+{% block content %}
+<!-- Header Bar -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 rounded-3xl">
+  <div>
+    <h1 class="text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
+      <span>👥</span> Customer Accounts Directory
+    </h1>
+    <p class="text-xs text-slate-400 mt-1">Registered customer profiles, total lifetime spending, order history, and account lock status.</p>
+  </div>
+</div>
+
+<!-- Search Input -->
+<div class="glass-card p-4 rounded-2xl border border-white/10">
+  <form method="GET" class="flex items-center gap-3">
+    <div class="relative flex-1">
+      <input type="text" name="q" value="{{ search_query }}" placeholder="Search by Username, Email, Name..." class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 pl-10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 transition"/>
+      <span class="absolute left-3.5 top-2.5 text-slate-500 text-xs">🔍</span>
+    </div>
+    <button type="submit" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition">Search</button>
+  </form>
+</div>
+
+<!-- Customers Grid -->
+<div class="glass-card rounded-3xl overflow-hidden border border-white/10">
+  <div class="overflow-x-auto custom-scrollbar">
+    <table class="w-full text-left border-collapse">
+      <thead>
+        <tr class="border-b border-white/5 bg-slate-900/80 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+          <th class="py-3.5 px-5">Customer Profile</th>
+          <th class="py-3.5 px-4">Email & Contact</th>
+          <th class="py-3.5 px-4 text-center">Total Orders</th>
+          <th class="py-3.5 px-4 text-right">Lifetime Spend (₹)</th>
+          <th class="py-3.5 px-4">Joined Date</th>
+          <th class="py-3.5 px-4 text-center">Account Status</th>
+          <th class="py-3.5 px-5 text-right">Action</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-white/5 text-xs">
+        {% for customer in customers %}
+        <tr class="hover:bg-white/[0.02] transition">
+          
+          <td class="py-4 px-5">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-brand-500 to-indigo-600 flex items-center justify-center font-bold text-white text-xs border border-white/20">
+                {{ customer.username|slice:":2"|upper }}
+              </div>
+              <div>
+                <div class="font-bold text-white">{{ customer.get_full_name|default:customer.username }}</div>
+                <div class="text-[10px] text-slate-400 font-mono">@{{ customer.username }}</div>
+              </div>
+            </div>
+          </td>
+
+          <td class="py-4 px-4 font-semibold text-slate-300">
+            {{ customer.email|default:"No email" }}
+          </td>
+
+          <td class="py-4 px-4 text-center font-bold font-mono text-white">
+            {{ customer.order_count }}
+          </td>
+
+          <td class="py-4 px-4 text-right font-mono font-extrabold text-emerald-400">
+            ₹{{ customer.total_spent|default:0|floatformat:2 }}
+          </td>
+
+          <td class="py-4 px-4 text-slate-400 font-mono text-[11px]">
+            {{ customer.date_joined|date:"d M Y" }}
+          </td>
+
+          <td class="py-4 px-4 text-center">
+            <span id="cust-status-{{ customer.pk }}" class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider {% if customer.is_active %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/30{% else %}bg-red-500/15 text-red-400 border border-red-500/30{% endif %}">
+              {% if customer.is_active %}Active{% else %}Locked{% endif %}
+            </span>
+          </td>
+
+          <td class="py-4 px-5 text-right">
+            <button onclick="toggleCustomerStatus({{ customer.pk }})" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/10 transition">
+              🔒 Toggle Lock
+            </button>
+          </td>
+
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="py-12 text-center text-slate-500 italic text-xs">No customer accounts registered yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  async function toggleCustomerStatus(userId) {
+    try {
+      const response = await fetch(`/backoffice/customers/${userId}/toggle-status/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        const badge = document.getElementById(`cust-status-${userId}`);
+        badge.textContent = data.is_active ? "Active" : "Locked";
+        badge.className = data.is_active 
+          ? "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+          : "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 border border-red-500/30";
+        showToast(data.message, true);
+      } else {
+        showToast(data.message, false);
+      }
+    } catch (err) {
+      showToast("Error updating customer account status.", false);
+    }
+  }
+</script>
+{% endblock %}
